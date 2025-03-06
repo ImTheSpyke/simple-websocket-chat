@@ -280,25 +280,35 @@
         socket.on('loginSuccess', (user) => {
             /*
             user = {
-                id: string
-                username: string
-                expiresAt: number
+                userId: user.id,
+                username: user.username,
+                expiresAt: user.expiresAt
             }
             */
             console.log('Logged in as', user);
-            localStorage.setItem('user', user)
+            localStorage.setItem('user', JSON.stringify(user));
+            if(document.getElementById('rememberMe').checked) {
+                window.location.href = '/'
+            } else {
+                window.location.href = `/?temporary=1`
+            }
         });
 
 
         window.addEventListener('load', () => {
-            const user = localStorage.getItem('user');
-            if (user && user.expiresAt > Date.now()) {
-                window.location.href = '/'
-            } else {
+            try {
+                const user = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null;
+                if (user && user.expiresAt > Date.now()) {
+                    window.location.href = '/'
+                } else {
+                    localStorage.removeItem('user');
+                }
+            } catch (error) {
+                console.error('Error parsing user data. Logged out and redirecting to /login', error);
                 localStorage.removeItem('user');
+                window.location.href = '/login'
             }
         });
-
 
     </script>
 </body>

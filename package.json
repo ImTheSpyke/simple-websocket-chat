@@ -1,7 +1,7 @@
 {
   "name": "simple-websocket-chat",
   "version": "1.0.0",
-  "type":"module",
+  "type": "module",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -24,7 +24,8 @@
     "express": "^4.21.2",
     "fs": "^0.0.1-security",
     "path": "^0.12.7",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.1",
+    "somefunctions": "^5.0.1"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",

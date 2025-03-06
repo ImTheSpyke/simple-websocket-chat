@@ -15,6 +15,72 @@
             margin: 0;
             padding: 0;
             background-color: #36393f;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .shake-animation {
+            animation: shake 0.3s infinite;
+            border: 2px solid #ff4d4d;
+        }
+
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(5px); }
+            50% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+            100% { transform: translateX(0); }
+        }
+
+        #loadingScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            z-index: 1000;
+            background-color: #36393f;
+        }
+        #loadingScreen img {
+            width: 128px;
+            height: 128px;
+            animation: rotate 2s ease-in-out infinite;
+        }
+
+        #loadingScreen.fade-out {
+            animation: fadeOut 0.5s forwards;
+        }
+
+        @keyframes fadeOut {
+            0% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+                visibility: hidden;
+            }
+        }
+
+        @keyframes rotate {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        #main {
+            margin: 0;
+            padding: 0;
+            background-color: #36393f;
             color: #fff;
             display: flex;
             height: 100vh;
@@ -75,7 +141,7 @@
 
 
         .chat {
-            width: 60%;
+            width: -webkit-fill-available;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -89,13 +155,24 @@
             overflow-y: auto;
             height: -webkit-fill-available;
         }
+        .chat-messages .loading {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            align-items: center;
+            justify-content: center;
+            display: flex;
+        }
+        .chat-messages:has(.message) .loading {
+            display: none;
+        }
         .message {
             margin-bottom: 10px;
             max-width: 80%;
             width: fit-content;
             position: relative;
         }
-        .message .username {
+        .message > .username {
             display: flex;
             align-items: center;
             font-size: 0.8em;
@@ -104,18 +181,25 @@
             margin-left: 5px;
             margin-right: 5px;
         }
-        .message .username img {
+        .message > .username img {
             width: 32px;
             height: 32px;
             border-radius: 50%;
             margin-right: 5px;
         }
-        .message .username .name {
+        .message > .username .name {
             font-size: 16px;
             font-weight: 700;
             margin: 0px 5px;
         }
-        .message .content {
+        .message > .username .timestamp {
+            font-size: 0.8em;
+            color: #b9bbbe;
+            margin-right: auto;
+            letter-spacing: 0.1em; /* Adjust the value as needed */
+        }
+        .message > .content {
+            margin-left: 45px;
             padding: 10px;
             background-color: #40444b;
             border-radius: 4px;
@@ -123,20 +207,28 @@
             width: fit-content;
             overflow-wrap: anywhere;
         }
-        .message.you {
+        
+        body.setting-message-right .message.you {
             margin-left: auto;
         }
-        .message.you .username {
+        body.setting-message-right .message.you .username {
             text-align: right;
             flex-direction: row-reverse;
         }
-        .message.you .username img {
+        body.setting-message-right .message.you .username img {
             margin-left: 5px;
             margin-right: 0;
         }
+        
+        body.setting-message-right .message.you .username .timestamp {
+            margin-left: auto;
+            margin-right: 5px;
+        }
+        body.setting-message-right .message.you .content {
+            margin-right: 45px;
+        }
         .message.you .content {
             background-color: #7289da;
-            margin-left: auto;
         }
         .chat-bar {
             display: flex;
@@ -210,64 +302,121 @@
     </style>
 </head>
 <body>
-    <div class="channels">
-        <h2>Channels</h2>
-        <div class="channel-list">
-            <div class="channel">
-                <div class="icon">
-                    <svg class="icon__2ea32" aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M10.99 3.16A1 1 0 1 0 9 2.84L8.15 8H4a1 1 0 0 0 0 2h3.82l-.67 4H3a1 1 0 1 0 0 2h3.82l-.8 4.84a1 1 0 0 0 1.97.32L8.85 16h4.97l-.8 4.84a1 1 0 0 0 1.97.32l.86-5.16H20a1 1 0 1 0 0-2h-3.82l.67-4H21a1 1 0 1 0 0-2h-3.82l.8-4.84a1 1 0 1 0-1.97-.32L15.15 8h-4.97l.8-4.84ZM14.15 14l.67-4H9.85l-.67 4h4.97Z" clip-rule="evenodd" class=""></path></svg>
+
+
+    <div id="loadingScreen">
+        <img src="/assets/images/logo.png" alt="Loading...">
+        <p style="color: #b9bbbe; margin-top: 20px;">Loading, please wait...</p>
+    </div>
+    <div id="main" class="hidden">
+        
+        <div class="channels">
+            <h2>Channels</h2>
+            <div class="channel-list">
+                <!-- <div class="channel">
+                    <div class="icon">
+                        <svg class="icon__2ea32" aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M10.99 3.16A1 1 0 1 0 9 2.84L8.15 8H4a1 1 0 0 0 0 2h3.82l-.67 4H3a1 1 0 1 0 0 2h3.82l-.8 4.84a1 1 0 0 0 1.97.32L8.85 16h4.97l-.8 4.84a1 1 0 0 0 1.97.32l.86-5.16H20a1 1 0 1 0 0-2h-3.82l.67-4H21a1 1 0 1 0 0-2h-3.82l.8-4.84a1 1 0 1 0-1.97-.32L15.15 8h-4.97l.8-4.84ZM14.15 14l.67-4H9.85l-.67 4h4.97Z" clip-rule="evenodd" class=""></path></svg>
+                    </div>
+                    <div class="name">Channel 1</div>
+                    <div class="members">3</div>
+                </div> -->
+                <div class="channel unread">
+                    <div class="icon">
+                        <svg class="icon__2ea32" aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M10.99 3.16A1 1 0 1 0 9 2.84L8.15 8H4a1 1 0 0 0 0 2h3.82l-.67 4H3a1 1 0 1 0 0 2h3.82l-.8 4.84a1 1 0 0 0 1.97.32L8.85 16h4.97l-.8 4.84a1 1 0 0 0 1.97.32l.86-5.16H20a1 1 0 1 0 0-2h-3.82l.67-4H21a1 1 0 1 0 0-2h-3.82l.8-4.84a1 1 0 1 0-1.97-.32L15.15 8h-4.97l.8-4.84ZM14.15 14l.67-4H9.85l-.67 4h4.97Z" clip-rule="evenodd" class=""></path></svg>
+                    </div>
+                    <div class="name">Channel 2</div>
+                    <div class="members">3</div>
                 </div>
-                <div class="name">Channel 1</div>
-                <div class="members">3</div>
-            </div>
-            <div class="channel unread">
-                <div class="icon">
-                    <svg class="icon__2ea32" aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M10.99 3.16A1 1 0 1 0 9 2.84L8.15 8H4a1 1 0 0 0 0 2h3.82l-.67 4H3a1 1 0 1 0 0 2h3.82l-.8 4.84a1 1 0 0 0 1.97.32L8.85 16h4.97l-.8 4.84a1 1 0 0 0 1.97.32l.86-5.16H20a1 1 0 1 0 0-2h-3.82l.67-4H21a1 1 0 1 0 0-2h-3.82l.8-4.84a1 1 0 1 0-1.97-.32L15.15 8h-4.97l.8-4.84ZM14.15 14l.67-4H9.85l-.67 4h4.97Z" clip-rule="evenodd" class=""></path></svg>
+                <div class="channel active">
+                    <div class="icon">
+                        <svg class="icon__2ea32" aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M10.99 3.16A1 1 0 1 0 9 2.84L8.15 8H4a1 1 0 0 0 0 2h3.82l-.67 4H3a1 1 0 1 0 0 2h3.82l-.8 4.84a1 1 0 0 0 1.97.32L8.85 16h4.97l-.8 4.84a1 1 0 0 0 1.97.32l.86-5.16H20a1 1 0 1 0 0-2h-3.82l.67-4H21a1 1 0 1 0 0-2h-3.82l.8-4.84a1 1 0 1 0-1.97-.32L15.15 8h-4.97l.8-4.84ZM14.15 14l.67-4H9.85l-.67 4h4.97Z" clip-rule="evenodd" class=""></path></svg>
+                    </div>
+                    <div class="name">Channel 3</div>
+                    <div class="members">3</div>
                 </div>
-                <div class="name">Channel 2</div>
-                <div class="members">3</div>
-            </div>
-            <div class="channel active">
-                <div class="icon">
-                    <svg class="icon__2ea32" aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M10.99 3.16A1 1 0 1 0 9 2.84L8.15 8H4a1 1 0 0 0 0 2h3.82l-.67 4H3a1 1 0 1 0 0 2h3.82l-.8 4.84a1 1 0 0 0 1.97.32L8.85 16h4.97l-.8 4.84a1 1 0 0 0 1.97.32l.86-5.16H20a1 1 0 1 0 0-2h-3.82l.67-4H21a1 1 0 1 0 0-2h-3.82l.8-4.84a1 1 0 1 0-1.97-.32L15.15 8h-4.97l.8-4.84ZM14.15 14l.67-4H9.85l-.67 4h4.97Z" clip-rule="evenodd" class=""></path></svg>
-                </div>
-                <div class="name">Channel 3</div>
-                <div class="members">3</div>
             </div>
         </div>
-    </div>
-    <div class="chat">
-        <div class="chat-messages">
-            <div class="message">
-                <div class="username">
-                    <img src="https://images.pexels.com/photos/14653174/pexels-photo-14653174.jpeg" alt="User1">
-                    <span class="name">User1</span>
+        <div class="chat">
+            <div class="chat-messages">
+                <!--
+                <div class="message">
+                    <div class="username">
+                        <img src="https://images.pexels.com/photos/14653174/pexels-photo-14653174.jpeg" alt="User1">
+                        <span class="name">User1</span>
+                    </div>
+                    <div class="content">Hello!</div>
                 </div>
-                <div class="content">Hello!</div>
+                <div class="message you">
+                    <div class="username">
+                        <img src="https://images.pexels.com/photos/14653174/pexels-photo-14653174.jpeg" alt="You">
+                        <span class="name">You</span>
+                    </div>
+                    <div class="content">Hi there!</div>
+                </div>-->
             </div>
-            <div class="message you">
-                <div class="username">
-                    <img src="https://images.pexels.com/photos/14653174/pexels-photo-14653174.jpeg" alt="You">
-                    <span class="name">You</span>
+            <div class="chat-bar">
+                <div class="icon">
+                    <!-- <img src="/assets/images/plus.png" alt="Icon2"> -->
+                    <svg aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="transparent" class=""></circle><path fill="currentColor" fill-rule="evenodd" d="M12 23a11 11 0 1 0 0-22 11 11 0 0 0 0 22Zm0-17a1 1 0 0 1 1 1v4h4a1 1 0 1 1 0 2h-4v4a1 1 0 1 1-2 0v-4H7a1 1 0 1 1 0-2h4V7a1 1 0 0 1 1-1Z" clip-rule="evenodd" class="attachButtonPlus__0923f"></path></svg>
                 </div>
-                <div class="content">Hi there!</div>
+                <textarea placeholder="Type a message..." rows="1"></textarea>
             </div>
         </div>
-        <div class="chat-bar">
-            <div class="icon">
-                <!-- <img src="/assets/images/plus.png" alt="Icon2"> -->
-                <svg aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="transparent" class=""></circle><path fill="currentColor" fill-rule="evenodd" d="M12 23a11 11 0 1 0 0-22 11 11 0 0 0 0 22Zm0-17a1 1 0 0 1 1 1v4h4a1 1 0 1 1 0 2h-4v4a1 1 0 1 1-2 0v-4H7a1 1 0 1 1 0-2h4V7a1 1 0 0 1 1-1Z" clip-rule="evenodd" class="attachButtonPlus__0923f"></path></svg>
-            </div>
-            <textarea placeholder="Type a message..." rows="1"></textarea>
+        <div class="users">
+            <h2>Users</h2>
+            <div class="user">User1</div>
+            <div class="user">User2</div>
+            <div class="user">User3</div>
         </div>
     </div>
-    <div class="users">
-        <h2>Users</h2>
-        <div class="user">User1</div>
-        <div class="user">User2</div>
-        <div class="user">User3</div>
-    </div>
+
+
+    <script src="/socket.io/socket.io.js"></script>
     <script>
+
+        const socket = io()
+
+        
+        let _GLOBAL_TEMP_ = {
+            TEMPORARY_SESSION: null,
+            CURRENT_ROOM: null,
+            OWN_USER_ID: null
+        }
+        
+        function startLoadingSentences() {
+            const sentences = [
+                "Powered by Quickord!",
+                "Fast login, for quicker chat.",
+            ];
+            let num = 0
+
+            function change() {
+                const sentence = sentences[num];
+                document.getElementById('loadingScreen').querySelector('p').textContent = sentence;
+                num = (num + 1) % sentences.length;
+            }
+
+            setInterval(change, 3000)
+        }
+
+        startLoadingSentences()
+
+
+        const loadingScreen = {
+            show: () => {
+                document.getElementById('loadingScreen').classList.remove('fade-out');
+                document.getElementById('loadingScreen').classList.remove('hidden');
+                document.getElementById('main').classList.add('hidden');
+            },
+            hide: () => {
+                document.getElementById('main').classList.remove('hidden');
+                document.getElementById('loadingScreen').classList.add('fade-out');
+                setTimeout(() => {
+                    document.getElementById('loadingScreen').classList.add('hidden');
+                }, 1000); // Match the duration of the fadeOut animation
+            }
+        }
+
         const textarea = document.querySelector('.chat-bar textarea');
         textarea.addEventListener('input', () => {
             textarea.style.height = 'auto';
@@ -276,109 +425,43 @@
         textarea.addEventListener('keydown', (event) => {
             if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
-            sendMessage();
+            APP.sendMessage();
             }
         });
 
-        function sendMessage() {
-            const messageContent = textarea.value.trim();
-            if (messageContent) {
-                // Add your message sending logic here
-                console.log('Message sent:', messageContent);
-                textarea.value = '';
-                textarea.style.height = 'auto';
 
-                addMessagetoHistory({
-                    content: "testing",
-                    author: "Coucou ?",
-                    authorId: "122",
-                    isOwn: true,
-                    authorImageUrl: "https://images.pexels.com/photos/14653174/pexels-photo-14653174.jpeg",
-                    timestamp: 1,
-                    attachments: []
-                })
-            }
-        }
-
-        /*
+        console.log(`[/] URL:`, window.location.href);
+        
+        
         window.addEventListener('load', () => {
-            const user = localStorage.getItem('user');
-            if (!user || user.logged == false || user.expiresAt < Date.now()) {
+            try {
+                UI.clearMessageHistory()
+                const user = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null;
+                console.log(`[/] User:`, user);
+                if (!user || user.logged == false || user.expiresAt < Date.now()) {
+                    localStorage.removeItem('user');
+                    window.location.href = '/login'
+                } else {
+                    socket.emit('relogin', user)
+                }
+            } catch (error) {
+                console.error('Error parsing user data. Logged out and redirecting to /login', error);
                 localStorage.removeItem('user');
                 window.location.href = '/login'
-            } else {
-                socket.emit('relogin', user)
             }
         });
-        */
+        
+
+        const searchParams = new URLSearchParams(window.location.search);
+        console.log(`[/] Search Params:`, searchParams);
+        _GLOBAL_TEMP_.TEMPORARY_SESSION = searchParams.get("temporary") == "1" ? true : false
+
+        const TEMPORARY_SESSION = searchParams.get("temporary") == "1";
 
 
         const SVG = {
             channel_locked: `<svg class="icon__2ea32" aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M16 4h.5v-.5a2.5 2.5 0 0 1 5 0V4h.5a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-6a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Zm4-.5V4h-2v-.5a1 1 0 1 1 2 0Z" clip-rule="evenodd" class=""></path><path fill="currentColor" d="M12.5 8c.28 0 .5.22.5.5V9c0 .1 0 .2.02.31.03.34-.21.69-.56.69H9.85l-.67 4h4.97l.28-1.68c.06-.34.44-.52.77-.43a3 3 0 0 0 .8.11c.27 0 .47.24.43.5l-.25 1.5H20a1 1 0 1 1 0 2h-4.15l-.86 5.16a1 1 0 0 1-1.98-.32l.8-4.84H8.86l-.86 5.16A1 1 0 0 1 6 20.84L6.82 16H3a1 1 0 1 1 0-2h4.15l.67-4H4a1 1 0 1 1 0-2h4.15l.86-5.16a1 1 0 1 1 1.98.32L10.19 8h2.31Z" class=""></path></svg>`,
             channel: `<svg class="icon__2ea32" aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M10.99 3.16A1 1 0 1 0 9 2.84L8.15 8H4a1 1 0 0 0 0 2h3.82l-.67 4H3a1 1 0 1 0 0 2h3.82l-.8 4.84a1 1 0 0 0 1.97.32L8.85 16h4.97l-.8 4.84a1 1 0 0 0 1.97.32l.86-5.16H20a1 1 0 1 0 0-2h-3.82l.67-4H21a1 1 0 1 0 0-2h-3.82l.8-4.84a1 1 0 1 0-1.97-.32L15.15 8h-4.97l.8-4.84ZM14.15 14l.67-4H9.85l-.67 4h4.97Z" clip-rule="evenodd" class=""></path></svg>`
-        }
-
-
-
-        let LAST_MESSAGE_USER_ID = null;
-
-        function addMessagetoHistory(message) {
-            /*
-            message: {
-                content: string,
-                author: string,
-                authorId: string,
-                isOwn: boolean,
-                authorImageUrl: string,
-                timestamp: number
-                attachments: [
-                    {
-                        type: 'image' | 'video' | 'audio' | 'file',
-                        url: string
-                    }
-                ]
-            }
-            */
-            function createMessageElement(message) {
-                const messageElement = document.createElement('div');
-                messageElement.classList.add('message');
-                if (message.isOwn) {
-                    messageElement.classList.add('you');
-                }
-                // Username bar
-                const usernameElement = document.createElement('div');
-                usernameElement.classList.add('username');
-                const userImageElement = document.createElement('img');
-                userImageElement.src = message.authorImageUrl;
-                userImageElement.alt = message.author;
-                const userNameElement = document.createElement('span');
-                userNameElement.classList.add('name');
-                userNameElement.textContent = message.isOwn ? "You" : message.author;
-                usernameElement.appendChild(userImageElement);
-                usernameElement.appendChild(userNameElement);
-
-                if(LAST_MESSAGE_USER_ID == message.authorId && LAST_MESSAGE_USER_ID != null) {
-                    usernameElement.style.display = 'none';
-                }
-
-                // content
-                const contentElement = document.createElement('div');
-                contentElement.classList.add('content');
-                contentElement.textContent = message.content;
-                messageElement.appendChild(usernameElement);
-                messageElement.appendChild(contentElement);
-                return messageElement;
-            }
-
-            const messageElement = createMessageElement(message);
-            document.querySelector('.chat-messages').appendChild(messageElement);
-
-            // Scroll to the bottom of the chat
-            scrollChatToBottom();
-
-
-            LAST_MESSAGE_USER_ID = message.authorId;
-            
         }
 
         function scrollChatToBottom() {
@@ -388,23 +471,29 @@
 
 
         const users = [
-            { id: 1, name: 'User1', imageUrl: 'https://images.pexels.com/photos/14653174/pexels-photo-14653174.jpeg' },
-            { id: 2, name: 'User2', imageUrl: 'https://images.pexels.com/photos/14653174/pexels-photo-14653174.jpeg' },
-            { id: 3, name: 'User3', imageUrl: 'https://images.pexels.com/photos/14653174/pexels-photo-14653174.jpeg' }
+            { id: "0", name: 'User0', imageUrl: 'https://images.pexels.com/photos/14653174/pexels-photo-14653174.jpeg' },
+            { id: "1", name: 'User1', imageUrl: 'https://robohash.org/1' },
+            { id: "2", name: 'User2', imageUrl: 'https://robohash.org/2' },
+            { id: "3", name: 'User3', imageUrl: 'https://robohash.org/3' },
         ];
 
         function sendFakeMessage(userId) {
-            const user = users.find(u => u.id === userId);
+            const user = users.find(u => u.id === `${userId}`);
             if (user) {
-                addMessagetoHistory({
+                if(user.id == "0") {
+                    user.id = _GLOBAL_TEMP_.OWN_USER_ID
+                }
+                UI.addMessagetoHistory({
+                    id: Math.random().toString(36).substr(2, 9),
                     content: `Message from ${user.name}`,
                     author: user.name,
-                    authorId: user.id.toString(),
-                    isOwn: false,
-                    authorImageUrl: user.imageUrl,
+                    authorId: user.id,
+                    authorAvatarUrl: user.imageUrl,
                     timestamp: Date.now(),
                     attachments: []
                 });
+            } else {
+                console.error(`[sendFakeMessage] User not found:`, userId);
             }
         }
 
@@ -424,6 +513,363 @@
         });
 
         document.body.appendChild(buttonContainer);
+
+
+
+        class _UIFunctions {
+            constructor() {
+                this.TEMP = {
+                    shakeMessageInputUntil: 0,
+                    LAST_MESSAGE_USER_ID: null,
+                }
+
+                setInterval(() => {
+                    if (this.TEMP.shakeMessageInputUntil < Date.now() && this.TEMP.shakeMessageInputUntil !== 0) {
+                        textarea.classList.remove('shake-animation');
+                        this.TEMP.shakeMessageInputUntil = 0;
+                    }
+                }, 100);
+            }
+
+            shakeMessageInput(duration) {
+                textarea.classList.add('shake-animation');
+                this.TEMP.shakeMessageInputUntil = Date.now() + duration;
+            }
+
+            clearMessageInput() {
+                console.log(`[UI] Clearing message input`);
+                textarea.value = '';
+                textarea.style.height = 'auto';
+            }
+
+            _createRoomElement(room) {
+                /*
+                room = {
+                    "id": string,
+                    "name": string,
+                    "isClosed": boolean,
+                    "canSeeHistory": boolean,
+                    "ownerID": string,
+                    "deletable": boolean,
+                    "allowVisitors": boolean,
+                    "whitelist": string[],
+                    "whitelistEnabled": boolean,
+                    "blacklist": string[],
+                    "blacklistEnabled": boolean,
+                    "expires": boolean,
+                    "expiresAt": number,
+
+                    "memberCount": number
+                }
+                */
+                let memberCount = room.memberCount ?? "?"
+
+                let elem = document.createElement('div');
+                elem.classList.add('channel');
+                elem.classList.add(`room-${room.id}`)
+                if(room.id == _GLOBAL_TEMP_.CURRENT_ROOM) {
+                    elem.classList.add('active')
+                }
+                elem.onclick = () => APP.joinRoom(room.id)
+                elem.innerHTML= `<div class="icon">
+                        ${SVG.channel}
+                    </div>
+                    <div class="name">${room.name}</div>
+                    <div class="members">${memberCount}</div>`
+                return elem
+            }
+
+
+            _clearMessageHistory_withText(text) {
+                document.querySelector('.chat-messages').innerHTML = ""
+                const loadingText = document.createElement('div');
+                loadingText.classList.add('loading');
+                const p = document.createElement('p');
+                p.innerText = text
+                loadingText.appendChild(p);
+                document.querySelector('.chat-messages').appendChild(loadingText);
+                this.TEMP.LAST_MESSAGE_USER_ID = null;
+            }
+            clearMessageHistory() {
+                this._clearMessageHistory_withText('Loading messages ...')
+            }
+            clearMessageHistory_noChannel() {
+                this._clearMessageHistory_withText('No channel selected')
+            }
+
+            addMessagetoHistory(message) {
+                /*
+                message: {
+                    id: string,
+                    content: string,
+                    author: string,
+                    authorId: string,
+                    authorAvatarUrl: string,
+                    timestamp: number
+                    attachments: [
+                        {
+                            type: 'image' | 'video' | 'audio' | 'file',
+                            url: string
+                        }
+                    ]
+                }
+                */
+                const that = this
+                function createMessageElement(message) {
+                    const messageElement = document.createElement('div');
+                    messageElement.classList.add('message');
+                    messageElement.classList.add(`messageId-${message.id}`);
+                    const isOwn = _GLOBAL_TEMP_.OWN_USER_ID == message.authorId // Own message
+                    if (isOwn) {
+                        messageElement.classList.add('you');
+                    }
+                    // Username bar
+                    const usernameElement = document.createElement('div');
+                    usernameElement.classList.add('username');
+                    // Avatar
+                    const userImageElement = document.createElement('img');
+                    userImageElement.src = message.authorAvatarUrl;
+                    userImageElement.alt = message.author;
+                    // Name
+                    const userNameElement = document.createElement('span');
+                    userNameElement.classList.add('name');
+                    userNameElement.textContent = isOwn ? "You" : message.author;
+                    // Timestamp
+                    const timestampElement = document.createElement('span');
+                    timestampElement.classList.add('timestamp');
+                    timestampElement.textContent = new Date(message.timestamp).toLocaleTimeString();
+                    
+                    usernameElement.appendChild(userImageElement);
+                    usernameElement.appendChild(userNameElement);
+                    usernameElement.appendChild(timestampElement);
+                    
+                    if(that.TEMP.LAST_MESSAGE_USER_ID == message.authorId && that.TEMP.LAST_MESSAGE_USER_ID != null) {
+                        usernameElement.style.display = 'none';
+                    }
+
+                    // content
+                    const contentElement = document.createElement('div');
+                    contentElement.classList.add('content');
+                    contentElement.textContent = message.content;
+                    messageElement.appendChild(usernameElement);
+                    messageElement.appendChild(contentElement);
+                    return messageElement;
+                }
+
+                const messageElement = createMessageElement(message);
+                document.querySelector('.chat-messages').appendChild(messageElement);
+
+                // Scroll to the bottom of the chat
+                scrollChatToBottom();
+
+
+                this.TEMP.LAST_MESSAGE_USER_ID = message.authorId;
+                
+            }
+
+            loadRooms(rooms) {
+                console.log(`[UI] Loading rooms:`, rooms);
+                const channelListElem = document.querySelector('.channel-list')
+                document.querySelector('.channel-list').innerHTML = ""
+                rooms.forEach(room => {
+                    let roomElement = this._createRoomElement(room)
+                    channelListElem.appendChild(roomElement)
+                });
+            }
+
+            selectRoom(roomId,retries=10) {
+                if(roomId == null) {
+                    console.error(`[UI] Room ID is null`);
+                    UI.clearMessageHistory_noChannel()
+                    return
+                }
+                _GLOBAL_TEMP_.CURRENT_ROOM = roomId
+                if(retries <= 0) {
+                    console.error(`[UI] Failed to select room:`, roomId);
+                    return
+                }
+                try {
+                    const channelListElem = document.querySelector('.channel-list')
+                    channelListElem.querySelectorAll('.channel').forEach(channel => {
+                        channel.classList.remove('active')
+                    })
+                    let channel = channelListElem.querySelector(`.room-${roomId}`)
+                    if(!channel) {
+                        console.error(`[UI] Room not found:`, roomId);
+                        return
+                    }
+                    channel.classList.add('active')
+                    this.clearMessageHistory()
+                    socket.emit('getRoomHistory', roomId)
+                } catch (error) {
+                    console.error(`[UI] Error selecting room:`, error);
+                    setTimeout(() => {
+                        this.selectRoom(roomId,retries-1)
+                    }, 100);
+                }
+            }
+            loadHistory(history) {
+                console.log(`[UI] Loading history:`, history);
+                document.querySelector('.chat-messages').innerHTML = ""
+                history.forEach(message => {
+                    UI.addMessagetoHistory(message)
+                });
+            }
+        }
+
+        const UI = new _UIFunctions();
+
+
+        class Cooldown {
+            constructor(duration) {
+                this.duration = duration
+                this.lastTime = 0
+            }
+            _canUse() {
+                if (Date.now() - this.lastTime > this.duration) {
+                    this.lastTime = Date.now()
+                    return true
+                } else {
+                    return false
+                }
+            }
+            use() {
+                if (this._canUse()) {
+                    return true
+                } else {
+                    return false
+                }
+            }
+        }
+
+        class _app {
+
+            constructor() {
+                this.Cooldowns = {
+                    sendMessage: new Cooldown(1000)
+                }
+            }
+
+            sendMessage() {
+                const messageContent = textarea.value.trim();
+                if (messageContent) {
+                    if(this.Cooldowns.sendMessage.use() == false) {
+                        UI.shakeMessageInput(300);
+                        return
+                    }
+                    console.log(`[APP] Sending message:`, messageContent);
+                    UI.clearMessageInput();
+                    socket.emit('sendMessage', {
+                        content: messageContent,
+                        attachments: [],
+                    })
+                } else {
+                    UI.shakeMessageInput(300);
+                }
+            }
+            receiveMessage(message) {
+                console.log(`[APP] Received message:`, message);
+                UI.addMessagetoHistory(message)
+            }
+
+            joinRoom(roomId) {
+                console.log(`[APP] Joining room:`, roomId);
+                socket.emit('joinRoom', roomId)
+            }
+        }
+
+        const APP = new _app();
+
+
+        /* SOCKET */
+        socket.on('loginSuccess', (user) => {
+            /*
+            user = {
+                userId: user.id,
+                username: user.username,
+                expiresAt: user.expiresAt
+            }
+            */
+            console.log(`[socket:loginSuccess] Logged in as:`, user);
+            _GLOBAL_TEMP_.OWN_USER_ID = user.userId
+            if(TEMPORARY_SESSION) {
+                console.log(`[socket:loginSuccess] Temporary session, redirecting to /login`);
+                localStorage.removeItem('user');
+                window.history.pushState({}, document.title, "/")
+            } else {
+                localStorage.setItem('user', JSON.stringify(user));
+            }
+            loadingScreen.hide();
+        });
+
+        socket.on('loggedOut',(datas) => {
+            /*
+            datas= {
+                reason: string
+            }
+                */
+            console.log(`[socket:loggedOut] Logged out:`, datas);
+            _GLOBAL_TEMP_.OWN_USER_ID = null
+            localStorage.removeItem('user');
+            window.location.href = '/login'
+        })
+
+
+
+        socket.on('roomList', (rooms) => {
+            /*
+            met rooms = Array<{
+                ...
+                memberCount: number
+            }>
+            */
+            console.log(`[socket:roomList] Rooms:`, rooms);
+            UI.loadRooms(rooms)
+            if(_GLOBAL_TEMP_.CURRENT_ROOM == null) {
+                socket.emit('joinRoom', 'default')
+            }
+        })
+
+        socket.on('joinedRoom', (roomId) => {
+            console.log(`[socket:joinedRoom]`, roomId);
+            UI.selectRoom(roomId)
+        })
+        socket.on('roomHistory', (history) => {
+            /*
+            history = Array<{
+                    content: string,
+                    author: string,
+                    authorId: string,
+                    authorAvatarUrl: string,
+                    timestamp: number
+                    attachments: Array<Attachment>
+                }>
+            */
+            console.log(`[socket:roomHistory]`, history);
+            UI.loadHistory(history)
+        })
+
+        socket.on('message', (message) => {
+            /*
+            message = Message
+            */
+            console.log(`[socket:message]`, message);
+            APP.receiveMessage(message)
+        })
+
+        socket.on('connect', () => {
+            console.log(`[socket:connect] Connected to server`);
+            socket.emit('getRooms')
+        });
+
+        socket.on('error', (error) => {
+            console.error(`[socket:error]`, error);
+        })
+
+
+        setInterval(() => {
+            socket.emit('getRooms')
+        }, 1000)
 
     </script>
 </body>
