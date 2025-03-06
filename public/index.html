@@ -20,21 +20,60 @@
             height: 100vh;
             overflow: hidden;
         }
-        .sidebar, .chat, .users {
-            padding: 20px;
+        .channels, .chat, .users {
+            padding: 15px;
             overflow-y: auto;
         }
-        .sidebar {
+        .channels {
             width: 20%;
             background-color: #2f3136;
             display: flex;
             flex-direction: column;
         }
-        .sidebar h2 {
+        .channels h2 {
             margin: 0 0 20px 0;
             font-size: 1.2em;
             color: #b9bbbe;
         }
+        .channel {
+            display: flex;
+            align-items: center;
+            position: relative;
+        }
+        .channel > .name {
+            font-size: 1em;
+            font-weight: 700;
+            flex:1;
+        }
+        .channel > .icon {
+            margin-right: 6px;
+        }
+        .channel > .icon > svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .channel.active {
+            background-color: #7289da;
+            font-weight: 700;
+            color: #fff;
+        }
+        .channel.active:hover {
+            background-color: #8299e9;
+        }
+        .channel.unread::before {
+            position: absolute;
+            content: '';
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background-color: #fff;
+            border-radius: 50%;
+            margin-right: 10px;
+            left: -20px;
+        }
+
+
         .chat {
             width: 60%;
             display: flex;
@@ -48,6 +87,7 @@
             background-color: #2f3136;
             border-radius: 8px;
             overflow-y: auto;
+            height: -webkit-fill-available;
         }
         .message {
             margin-bottom: 10px;
@@ -81,6 +121,7 @@
             border-radius: 4px;
             font-size: 1em;
             width: fit-content;
+            overflow-wrap: anywhere;
         }
         .message.you {
             margin-left: auto;
@@ -95,6 +136,7 @@
         }
         .message.you .content {
             background-color: #7289da;
+            margin-left: auto;
         }
         .chat-bar {
             display: flex;
@@ -118,16 +160,16 @@
             display: flex;
             align-items: center; /* Center content vertically */
         }
-        .chat-bar textarea::-webkit-scrollbar {
+        *::-webkit-scrollbar {
             width: 16px;
         }
-        .chat-bar textarea::-webkit-scrollbar-thumb {
+        *::-webkit-scrollbar-thumb {
             background-color: #282b30;
             border-radius: 10px;
             border: 6px solid transparent; /* Added 2px transparent border */
             background-clip: padding-box; /* Ensures the border is outside the thumb */
         }
-        .chat-bar textarea::-webkit-scrollbar-track {
+        *::-webkit-scrollbar-track {
             border-radius: 4px;
         }
         .chat-bar textarea:focus {
@@ -139,7 +181,7 @@
             cursor: pointer;
             display: flex;
         }
-        .chat-bar .icon img, svg {
+        .chat-bar > .icon img {
             width: 24px;
             height: 24px;
         }
@@ -168,11 +210,31 @@
     </style>
 </head>
 <body>
-    <div class="sidebar">
+    <div class="channels">
         <h2>Channels</h2>
-        <div class="channel">General</div>
-        <div class="channel">Random</div>
-        <div class="channel">Help</div>
+        <div class="channel-list">
+            <div class="channel">
+                <div class="icon">
+                    <svg class="icon__2ea32" aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M10.99 3.16A1 1 0 1 0 9 2.84L8.15 8H4a1 1 0 0 0 0 2h3.82l-.67 4H3a1 1 0 1 0 0 2h3.82l-.8 4.84a1 1 0 0 0 1.97.32L8.85 16h4.97l-.8 4.84a1 1 0 0 0 1.97.32l.86-5.16H20a1 1 0 1 0 0-2h-3.82l.67-4H21a1 1 0 1 0 0-2h-3.82l.8-4.84a1 1 0 1 0-1.97-.32L15.15 8h-4.97l.8-4.84ZM14.15 14l.67-4H9.85l-.67 4h4.97Z" clip-rule="evenodd" class=""></path></svg>
+                </div>
+                <div class="name">Channel 1</div>
+                <div class="members">3</div>
+            </div>
+            <div class="channel unread">
+                <div class="icon">
+                    <svg class="icon__2ea32" aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M10.99 3.16A1 1 0 1 0 9 2.84L8.15 8H4a1 1 0 0 0 0 2h3.82l-.67 4H3a1 1 0 1 0 0 2h3.82l-.8 4.84a1 1 0 0 0 1.97.32L8.85 16h4.97l-.8 4.84a1 1 0 0 0 1.97.32l.86-5.16H20a1 1 0 1 0 0-2h-3.82l.67-4H21a1 1 0 1 0 0-2h-3.82l.8-4.84a1 1 0 1 0-1.97-.32L15.15 8h-4.97l.8-4.84ZM14.15 14l.67-4H9.85l-.67 4h4.97Z" clip-rule="evenodd" class=""></path></svg>
+                </div>
+                <div class="name">Channel 2</div>
+                <div class="members">3</div>
+            </div>
+            <div class="channel active">
+                <div class="icon">
+                    <svg class="icon__2ea32" aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M10.99 3.16A1 1 0 1 0 9 2.84L8.15 8H4a1 1 0 0 0 0 2h3.82l-.67 4H3a1 1 0 1 0 0 2h3.82l-.8 4.84a1 1 0 0 0 1.97.32L8.85 16h4.97l-.8 4.84a1 1 0 0 0 1.97.32l.86-5.16H20a1 1 0 1 0 0-2h-3.82l.67-4H21a1 1 0 1 0 0-2h-3.82l.8-4.84a1 1 0 1 0-1.97-.32L15.15 8h-4.97l.8-4.84ZM14.15 14l.67-4H9.85l-.67 4h4.97Z" clip-rule="evenodd" class=""></path></svg>
+                </div>
+                <div class="name">Channel 3</div>
+                <div class="members">3</div>
+            </div>
+        </div>
     </div>
     <div class="chat">
         <div class="chat-messages">
@@ -221,12 +283,148 @@
         function sendMessage() {
             const messageContent = textarea.value.trim();
             if (messageContent) {
-            // Add your message sending logic here
-            console.log('Message sent:', messageContent);
-            textarea.value = '';
-            textarea.style.height = 'auto';
+                // Add your message sending logic here
+                console.log('Message sent:', messageContent);
+                textarea.value = '';
+                textarea.style.height = 'auto';
+
+                addMessagetoHistory({
+                    content: "testing",
+                    author: "Coucou ?",
+                    authorId: "122",
+                    isOwn: true,
+                    authorImageUrl: "https://images.pexels.com/photos/14653174/pexels-photo-14653174.jpeg",
+                    timestamp: 1,
+                    attachments: []
+                })
             }
         }
+
+        /*
+        window.addEventListener('load', () => {
+            const user = localStorage.getItem('user');
+            if (!user || user.logged == false || user.expiresAt < Date.now()) {
+                localStorage.removeItem('user');
+                window.location.href = '/login'
+            } else {
+                socket.emit('relogin', user)
+            }
+        });
+        */
+
+
+        const SVG = {
+            channel_locked: `<svg class="icon__2ea32" aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M16 4h.5v-.5a2.5 2.5 0 0 1 5 0V4h.5a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-6a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Zm4-.5V4h-2v-.5a1 1 0 1 1 2 0Z" clip-rule="evenodd" class=""></path><path fill="currentColor" d="M12.5 8c.28 0 .5.22.5.5V9c0 .1 0 .2.02.31.03.34-.21.69-.56.69H9.85l-.67 4h4.97l.28-1.68c.06-.34.44-.52.77-.43a3 3 0 0 0 .8.11c.27 0 .47.24.43.5l-.25 1.5H20a1 1 0 1 1 0 2h-4.15l-.86 5.16a1 1 0 0 1-1.98-.32l.8-4.84H8.86l-.86 5.16A1 1 0 0 1 6 20.84L6.82 16H3a1 1 0 1 1 0-2h4.15l.67-4H4a1 1 0 1 1 0-2h4.15l.86-5.16a1 1 0 1 1 1.98.32L10.19 8h2.31Z" class=""></path></svg>`,
+            channel: `<svg class="icon__2ea32" aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M10.99 3.16A1 1 0 1 0 9 2.84L8.15 8H4a1 1 0 0 0 0 2h3.82l-.67 4H3a1 1 0 1 0 0 2h3.82l-.8 4.84a1 1 0 0 0 1.97.32L8.85 16h4.97l-.8 4.84a1 1 0 0 0 1.97.32l.86-5.16H20a1 1 0 1 0 0-2h-3.82l.67-4H21a1 1 0 1 0 0-2h-3.82l.8-4.84a1 1 0 1 0-1.97-.32L15.15 8h-4.97l.8-4.84ZM14.15 14l.67-4H9.85l-.67 4h4.97Z" clip-rule="evenodd" class=""></path></svg>`
+        }
+
+
+
+        let LAST_MESSAGE_USER_ID = null;
+
+        function addMessagetoHistory(message) {
+            /*
+            message: {
+                content: string,
+                author: string,
+                authorId: string,
+                isOwn: boolean,
+                authorImageUrl: string,
+                timestamp: number
+                attachments: [
+                    {
+                        type: 'image' | 'video' | 'audio' | 'file',
+                        url: string
+                    }
+                ]
+            }
+            */
+            function createMessageElement(message) {
+                const messageElement = document.createElement('div');
+                messageElement.classList.add('message');
+                if (message.isOwn) {
+                    messageElement.classList.add('you');
+                }
+                // Username bar
+                const usernameElement = document.createElement('div');
+                usernameElement.classList.add('username');
+                const userImageElement = document.createElement('img');
+                userImageElement.src = message.authorImageUrl;
+                userImageElement.alt = message.author;
+                const userNameElement = document.createElement('span');
+                userNameElement.classList.add('name');
+                userNameElement.textContent = message.isOwn ? "You" : message.author;
+                usernameElement.appendChild(userImageElement);
+                usernameElement.appendChild(userNameElement);
+
+                if(LAST_MESSAGE_USER_ID == message.authorId && LAST_MESSAGE_USER_ID != null) {
+                    usernameElement.style.display = 'none';
+                }
+
+                // content
+                const contentElement = document.createElement('div');
+                contentElement.classList.add('content');
+                contentElement.textContent = message.content;
+                messageElement.appendChild(usernameElement);
+                messageElement.appendChild(contentElement);
+                return messageElement;
+            }
+
+            const messageElement = createMessageElement(message);
+            document.querySelector('.chat-messages').appendChild(messageElement);
+
+            // Scroll to the bottom of the chat
+            scrollChatToBottom();
+
+
+            LAST_MESSAGE_USER_ID = message.authorId;
+            
+        }
+
+        function scrollChatToBottom() {
+            document.querySelector('.chat-messages').scrollTop = document.querySelector('.chat-messages').scrollHeight;
+        }
+
+
+
+        const users = [
+            { id: 1, name: 'User1', imageUrl: 'https://images.pexels.com/photos/14653174/pexels-photo-14653174.jpeg' },
+            { id: 2, name: 'User2', imageUrl: 'https://images.pexels.com/photos/14653174/pexels-photo-14653174.jpeg' },
+            { id: 3, name: 'User3', imageUrl: 'https://images.pexels.com/photos/14653174/pexels-photo-14653174.jpeg' }
+        ];
+
+        function sendFakeMessage(userId) {
+            const user = users.find(u => u.id === userId);
+            if (user) {
+                addMessagetoHistory({
+                    content: `Message from ${user.name}`,
+                    author: user.name,
+                    authorId: user.id.toString(),
+                    isOwn: false,
+                    authorImageUrl: user.imageUrl,
+                    timestamp: Date.now(),
+                    attachments: []
+                });
+            }
+        }
+
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.position = 'absolute';
+        buttonContainer.style.top = '10px';
+        buttonContainer.style.left = '50%';
+        buttonContainer.style.transform = 'translateX(-50%)';
+        buttonContainer.style.display = 'flex';
+        buttonContainer.style.gap = '10px';
+
+        users.forEach(user => {
+            const button = document.createElement('button');
+            button.textContent = `Send as ${user.name}`;
+            button.addEventListener('click', () => sendFakeMessage(user.id));
+            buttonContainer.appendChild(button);
+        });
+
+        document.body.appendChild(buttonContainer);
+
     </script>
 </body>
 </html>

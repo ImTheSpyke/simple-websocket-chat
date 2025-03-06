@@ -92,6 +92,10 @@
         .login-container button:hover {
             background-color: #5b6eae;
         }
+        .login-container button:disabled {
+            background-color: #4a5568;
+            cursor: not-allowed;
+        }
         .login-container .remember-me {
             display: flex;
             align-items: center;
@@ -221,8 +225,8 @@
 
         const socket = io()
 
-        function login() {
-            const username = document.getElementById('username').value;
+
+        function createInfoBox(message) {
             const alertBox = document.createElement('div');
             alertBox.style.position = 'absolute';
             alertBox.style.top = '20px';
@@ -237,20 +241,30 @@
             alertBox.style.fontSize = '16px';
             alertBox.style.fontWeight = '500';
             alertBox.style.textAlign = 'center';
-
-            if (username.length < 3 || username.length > 20) {
-                alertBox.textContent = 'Username must be between 3 and 20 characters.';
-                document.body.appendChild(alertBox);
-                setTimeout(() => {
-                    alertBox.remove();
-                }, 3000);
-                return;
-            }
-            // Proceed with login
-            alertBox.textContent = 'Login successful';
+            alertBox.textContent = message;
             document.body.appendChild(alertBox);
             setTimeout(() => {
                 alertBox.remove();
+            }, 3000);
+        }
+
+        function login() {
+            const username = document.getElementById('username').value;
+            const alertBox = document.createElement('div')
+
+            if (username.length < 3 || username.length > 20) {
+                createInfoBox('Username must be between 3 and 20 characters.');
+                return;
+            }
+            // Proceed with login
+            socket.emit('login', {
+                username: username
+            });
+            document.querySelector('button').disabled = true;
+            document.querySelector('button').textContent = 'Loading ...';
+            setTimeout(() => {
+                document.querySelector('button').textContent = 'Start chatting';
+                document.querySelector('button').disabled = false;
             }, 3000);
         }
 
@@ -263,19 +277,16 @@
             console.log('Disconnected from server');
         });
 
-        socket.on('login', (user) => {
+        socket.on('loginSuccess', (user) => {
             /*
             user = {
+                id: string
                 username: string
                 expiresAt: number
             }
             */
             console.log('Logged in as', user);
-            localStorage.setItem('user', {
-                logged: true,
-                username: user.username,
-                expiresAt: user.expiresAt
-            })
+            localStorage.setItem('user', user)
         });
 
 
