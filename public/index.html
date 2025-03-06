@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quickord | Chat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 500;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #36393f;
+            color: #fff;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .sidebar, .chat, .users {
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .sidebar {
+            width: 20%;
+            background-color: #2f3136;
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar h2 {
+            margin: 0 0 20px 0;
+            font-size: 1.2em;
+            color: #b9bbbe;
+        }
+        .chat {
+            width: 60%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .chat-messages {
+            flex-grow: 1;
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #2f3136;
+            border-radius: 8px;
+            overflow-y: auto;
+        }
+        .message {
+            margin-bottom: 10px;
+            max-width: 80%;
+            width: fit-content;
+            position: relative;
+        }
+        .message .username {
+            display: flex;
+            align-items: center;
+            font-size: 0.8em;
+            color: #b9bbbe;
+            margin-bottom: 5px;
+            margin-left: 5px;
+            margin-right: 5px;
+        }
+        .message .username img {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .message .username .name {
+            font-size: 16px;
+            font-weight: 700;
+            margin: 0px 5px;
+        }
+        .message .content {
+            padding: 10px;
+            background-color: #40444b;
+            border-radius: 4px;
+            font-size: 1em;
+            width: fit-content;
+        }
+        .message.you {
+            margin-left: auto;
+        }
+        .message.you .username {
+            text-align: right;
+            flex-direction: row-reverse;
+        }
+        .message.you .username img {
+            margin-left: 5px;
+            margin-right: 0;
+        }
+        .message.you .content {
+            background-color: #7289da;
+        }
+        .chat-bar {
+            display: flex;
+            align-items: center;
+            background-color: #40444b;
+            border-radius: 10px;
+            overflow: hidden;
+            align-items: center;
+        }
+        .chat-bar textarea {
+            flex-grow: 1;
+            padding: 20px 20px 20px 0px;
+            border: none;
+            background-color: #40444b;
+            color: #fff;
+            resize: none; /* Disable manual resizing */
+            max-height: 40vh;
+            overflow-y: auto; /* Enable vertical scrolling */
+            font-size: 1em;
+            line-height: 1.5em;
+            display: flex;
+            align-items: center; /* Center content vertically */
+        }
+        .chat-bar textarea::-webkit-scrollbar {
+            width: 16px;
+        }
+        .chat-bar textarea::-webkit-scrollbar-thumb {
+            background-color: #282b30;
+            border-radius: 10px;
+            border: 6px solid transparent; /* Added 2px transparent border */
+            background-clip: padding-box; /* Ensures the border is outside the thumb */
+        }
+        .chat-bar textarea::-webkit-scrollbar-track {
+            border-radius: 4px;
+        }
+        .chat-bar textarea:focus {
+            outline: none;
+        }
+        .chat-bar .icon {
+            margin: 10px;
+            padding: 10px;
+            cursor: pointer;
+            display: flex;
+        }
+        .chat-bar .icon img, svg {
+            width: 24px;
+            height: 24px;
+        }
+        .users {
+            width: 20%;
+            background-color: #2f3136;
+            display: flex;
+            flex-direction: column;
+        }
+        .users h2 {
+            margin: 0 0 20px 0;
+            font-size: 1.2em;
+            color: #b9bbbe;
+        }
+        .channel, .user {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            background-color: #40444b;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .channel:hover, .user:hover {
+            background-color: #50545c;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>Channels</h2>
+        <div class="channel">General</div>
+        <div class="channel">Random</div>
+        <div class="channel">Help</div>
+    </div>
+    <div class="chat">
+        <div class="chat-messages">
+            <div class="message">
+                <div class="username">
+                    <img src="https://images.pexels.com/photos/14653174/pexels-photo-14653174.jpeg" alt="User1">
+                    <span class="name">User1</span>
+                </div>
+                <div class="content">Hello!</div>
+            </div>
+            <div class="message you">
+                <div class="username">
+                    <img src="https://images.pexels.com/photos/14653174/pexels-photo-14653174.jpeg" alt="You">
+                    <span class="name">You</span>
+                </div>
+                <div class="content">Hi there!</div>
+            </div>
+        </div>
+        <div class="chat-bar">
+            <div class="icon">
+                <!-- <img src="/assets/images/plus.png" alt="Icon2"> -->
+                <svg aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="transparent" class=""></circle><path fill="currentColor" fill-rule="evenodd" d="M12 23a11 11 0 1 0 0-22 11 11 0 0 0 0 22Zm0-17a1 1 0 0 1 1 1v4h4a1 1 0 1 1 0 2h-4v4a1 1 0 1 1-2 0v-4H7a1 1 0 1 1 0-2h4V7a1 1 0 0 1 1-1Z" clip-rule="evenodd" class="attachButtonPlus__0923f"></path></svg>
+            </div>
+            <textarea placeholder="Type a message..." rows="1"></textarea>
+        </div>
+    </div>
+    <div class="users">
+        <h2>Users</h2>
+        <div class="user">User1</div>
+        <div class="user">User2</div>
+        <div class="user">User3</div>
+    </div>
+    <script>
+        const textarea = document.querySelector('.chat-bar textarea');
+        textarea.addEventListener('input', () => {
+            textarea.style.height = 'auto';
+            textarea.style.height = textarea.scrollHeight + 'px';
+        });
+        textarea.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            sendMessage();
+            }
+        });
+
+        function sendMessage() {
+            const messageContent = textarea.value.trim();
+            if (messageContent) {
+            // Add your message sending logic here
+            console.log('Message sent:', messageContent);
+            textarea.value = '';
+            textarea.style.height = 'auto';
+            }
+        }
+    </script>
+</body>
+</html>

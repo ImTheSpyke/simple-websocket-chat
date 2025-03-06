@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quickord | Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 500;
+        }
+
+        .title {
+            font-size: 2.5em;
+            margin-bottom: 15px;
+        }
+        .subtitle {
+            font-weight: 300;
+            font-size: 16px;
+            color: #b9bbbe;
+            margin-bottom: 2em;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+            background-color: #36393f;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .login-container {
+            background-color: #2f3136;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            width: 350px;
+            text-align: center;
+            animation: fadeIn 1s ease-in-out;
+        }
+        .input-container {
+            position: relative;
+            margin: 12px 0;
+        }
+        .input-container input {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 4px;
+            background-color: #40444b;
+            color: #fff;
+            transition: background-color 0.3s ease;
+            font-size: 1.1em;
+        }
+        .input-container input:focus {
+            background-color: #50545c;
+            outline: none;
+        }
+        .input-container label {
+            position: absolute;
+            top: 50%;
+            left: 12px;
+            transform: translateY(-50%);
+            color: #b9bbbe;
+            font-size: 1.1em;
+            pointer-events: none;
+            transition: all 0.3s ease;
+        }
+        .input-container input:focus + label,
+        .input-container input:not(:placeholder-shown) + label {
+            top: -10px;
+            left: 12px;
+            font-size: 0.9em;
+        }
+        .login-container button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 4px;
+            background-color: #7289da;
+            color: #fff;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .login-container button:hover {
+            background-color: #5b6eae;
+        }
+        .login-container .remember-me {
+            display: flex;
+            align-items: center;
+            margin: 12px 0;
+            position: relative;
+        }
+        .login-container .checkbox-input {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #7289da;
+            border-radius: 4px;
+            background-color: #2f3136;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+            margin-right: 10px;
+            position: relative;
+            cursor: pointer;
+        }
+        .login-container .checkbox-input:checked {
+            background-color: #7289da;
+            border-color: #7289da;
+        }
+        .login-container .checkbox-input:checked::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%) rotate(45deg);
+            width: 6px;
+            height: 12px;
+            border: solid #fff;
+            border-width: 0 2px 2px 0;
+        }
+        .login-container .remember-me label {
+            cursor: pointer;
+            user-select: none;
+        }
+        .login-container .remember-me .tooltip {
+            visibility: hidden;
+            width: 200px;
+            background-color: #555;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%; /* Position the tooltip above the text */
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        .login-container .remember-me .tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%; /* At the bottom of the tooltip */
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #555 transparent transparent transparent;
+        }
+        .login-container .remember-me:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+            transition-delay: 0.5s;
+        }
+        .login-container .remember-me:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        @keyframes backgroundAnimation {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(270deg, #36393f, #2f3136, #40444b);
+            background-size: 600% 600%;
+            z-index: -1;
+            animation: backgroundAnimation 10s ease infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h1 class="title">Quickord</h1>
+        <h2 class="subtitle">Fast login, for quicker chat.</h2>
+        <div class="input-container">
+            <input type="text" id="username" class="text-input" placeholder=" " name="username" required minlength="3" maxlength="20">
+            <label for="username">Username</label>
+        </div>
+        <div class="remember-me">
+            <input type="checkbox" id="rememberMe" class="checkbox-input">
+            <label for="rememberMe">Remember me</label>
+            <span class="tooltip">Saves your nickname for next time</span>
+        </div>
+        <button onclick="login()">Start chatting</button>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+
+        const socket = io()
+
+        function login() {
+            const username = document.getElementById('username').value;
+            const alertBox = document.createElement('div');
+            alertBox.style.position = 'absolute';
+            alertBox.style.top = '20px';
+            alertBox.style.left = '50%';
+            alertBox.style.transform = 'translateX(-50%)';
+            alertBox.style.backgroundColor = '#ff4d4d';
+            alertBox.style.color = '#fff';
+            alertBox.style.padding = '10px 20px';
+            alertBox.style.borderRadius = '5px';
+            alertBox.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.2)';
+            alertBox.style.zIndex = '1000';
+            alertBox.style.fontSize = '16px';
+            alertBox.style.fontWeight = '500';
+            alertBox.style.textAlign = 'center';
+
+            if (username.length < 3 || username.length > 20) {
+                alertBox.textContent = 'Username must be between 3 and 20 characters.';
+                document.body.appendChild(alertBox);
+                setTimeout(() => {
+                    alertBox.remove();
+                }, 3000);
+                return;
+            }
+            // Proceed with login
+            alertBox.textContent = 'Login successful';
+            document.body.appendChild(alertBox);
+            setTimeout(() => {
+                alertBox.remove();
+            }, 3000);
+        }
+
+
+        socket.on('connect', () => {
+            console.log('Connected to server');
+        });
+
+        socket.on('disconnect', () => {
+            console.log('Disconnected from server');
+        });
+
+        socket.on('login', (user) => {
+            /*
+            user = {
+                username: string
+                expiresAt: number
+            }
+            */
+            console.log('Logged in as', user);
+            localStorage.setItem('user', {
+                logged: true,
+                username: user.username,
+                expiresAt: user.expiresAt
+            })
+        });
+
+
+        window.addEventListener('load', () => {
+            const user = localStorage.getItem('user');
+            if (user && user.expiresAt > Date.now()) {
+                window.location.href = '/'
+            } else {
+                localStorage.removeItem('user');
+            }
+        });
+
+
+    </script>
+</body>
+</html>
