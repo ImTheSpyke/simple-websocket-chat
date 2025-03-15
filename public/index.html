@@ -597,6 +597,42 @@
                 this._clearMessageHistory_withText('No channel selected')
             }
 
+            /**
+             * Generate a list of span and br elements from a text
+             * @returns {HTMLElement[]}
+             */
+            _parseContentToElement(text) {
+                const elements = [];
+                const lines = text.split('\n');
+                const urlRegex = /(https?:\/\/[^\s]+)/g;
+
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+                    const parts = line.split(urlRegex);
+
+                    for (let j = 0; j < parts.length; j++) {
+                        const part = parts[j];
+                        if (urlRegex.test(part)) {
+                            const a = document.createElement('a');
+                            a.href = part;
+                            a.textContent = part;
+                            a.target = '_blank';
+                            a.rel = 'noopener noreferrer';
+                            elements.push(a);
+                        } else {
+                            const span = document.createElement('span');
+                            span.textContent = part;
+                            elements.push(span);
+                        }
+                    }
+
+                    if (i < lines.length - 1) {
+                        elements.push(document.createElement('br'));
+                    }
+                }
+                return elements;
+            }
+
             addMessagetoHistory(message) {
                 /*
                 message: {
@@ -646,11 +682,15 @@
                     if(that.TEMP.LAST_MESSAGE_USER_ID == message.authorId && that.TEMP.LAST_MESSAGE_USER_ID != null) {
                         usernameElement.style.display = 'none';
                     }
+                    
 
                     // content
                     const contentElement = document.createElement('div');
                     contentElement.classList.add('content');
-                    contentElement.textContent = message.content;
+                    const parsedContent = that._parseContentToElement(message.content);
+                    for (let i = 0; i < parsedContent.length; i++) {
+                        contentElement.appendChild(parsedContent[i]);
+                    }
                     messageElement.appendChild(usernameElement);
                     messageElement.appendChild(contentElement);
                     return messageElement;
@@ -865,11 +905,6 @@
         socket.on('error', (error) => {
             console.error(`[socket:error]`, error);
         })
-
-
-        setInterval(() => {
-            socket.emit('getRooms')
-        }, 1000)
 
     </script>
 </body>

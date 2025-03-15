@@ -138,6 +138,16 @@ export type Role = {
 */
 
 
+function getRoomList(): Array<Types.Room> {
+    const roomList = Array.from(Rooms.values());
+    return roomList.map(room => {
+        return {
+            ...room,
+            memberCount: RM_Members.getMembers(room.id).length
+        }
+    })
+}
+
 
 class RoomManager_Members {
     static RoomMembers: Map<string, Array<Types.User>> = new Map();
@@ -350,14 +360,7 @@ io.on('connection', (socket) => {
 
     socket.on('getRooms', () => {
         if(!isConnected()) { return }
-        let roomList = Array.from(Rooms.values())
-        roomList = roomList.map(room => {
-            return {
-                ...room,
-                memberCount: RM_Members.getMembers(room.id).length
-            }
-        })
-        socket.emit('roomList', roomList);
+        socket.emit('roomList', getRoomList());
     });
 
     socket.on('joinRoom', (roomId: string) => {
@@ -369,11 +372,13 @@ io.on('connection', (socket) => {
         if(!Rooms.has(roomId)) {
             socket.emit('error', { message: 'Room not found' });
             socket.emit('joinedRoom', null);
+            socket.emit('roomList', getRoomList());
             return;
         } else {
             console.log(`[joinRoom] joined room 'room-${roomId}'`);
             socket.join(`room-${roomId}`);
             socket.emit('joinedRoom', roomId);
+            socket.emit('roomList', getRoomList());
             if(user) {
                 RM_Members.removeMemberFromAllRooms(user);
                 RM_Members.addMember(roomId, user);
