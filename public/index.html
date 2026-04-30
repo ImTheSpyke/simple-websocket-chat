@@ -182,8 +182,8 @@
             margin-right: 5px;
         }
         .message > .username img {
-            width: 32px;
-            height: 32px;
+            width: 50px;
+            height: 50px;
             border-radius: 50%;
             margin-right: 5px;
         }
@@ -191,16 +191,20 @@
             font-size: 16px;
             font-weight: 700;
             margin: 0px 5px;
+            margin-top: -25px;
         }
         .message > .username .timestamp {
             font-size: 0.8em;
             color: #b9bbbe;
             margin-right: auto;
             letter-spacing: 0.1em; /* Adjust the value as needed */
+            margin-top: -25px;
+            margin-left: 5px;
         }
         .message > .content {
-            margin-left: 45px;
-            padding: 10px;
+            margin-left: 65px;
+            margin-top: -30px;
+            padding: 8px;
             background-color: #40444b;
             border-radius: 4px;
             font-size: 1em;
@@ -295,6 +299,21 @@
             background-color: #40444b;
             cursor: pointer;
             transition: background-color 0.2s;
+        }
+
+        #main > div.users > .user {
+            display: flex;
+            justify-content: left;
+            align-items: center;
+        }
+        #main > div.users .user > img {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        #main > div.users > .user .name {
+            font-size: 1em;
         }
         .channel:hover, .user:hover {
             background-color: #50545c;
@@ -505,12 +524,13 @@
         buttonContainer.style.display = 'flex';
         buttonContainer.style.gap = '10px';
 
+        /*
         users.forEach(user => {
             const button = document.createElement('button');
             button.textContent = `Send as ${user.name}`;
             button.addEventListener('click', () => sendFakeMessage(user.id));
             buttonContainer.appendChild(button);
-        });
+        });*/
 
         document.body.appendChild(buttonContainer);
 
@@ -576,6 +596,31 @@
                     </div>
                     <div class="name">${room.name}</div>
                     <div class="members">${memberCount}</div>`
+                return elem
+            }
+
+            _createUserElement(user) {
+                /*
+                user = {
+                        id: member.id,
+                        username: member.username,
+                        avatarUrl: member.avatarUrl,
+                }
+                */
+                let elem = document.createElement('div');
+                elem.classList.add('user');
+                elem.appendChild((() => {
+                    const img = document.createElement('img');
+                    img.src = user.avatarUrl ?? "https://robohash.org/0";
+                    img.alt = user.username;
+                    return img;
+                })());
+                elem.appendChild((() => {
+                    const span = document.createElement('span');
+                    span.classList.add('name');
+                    span.textContent = user.username ?? "Unknown User";
+                    return span;
+                })());
                 return elem
             }
 
@@ -673,7 +718,11 @@
                     // Timestamp
                     const timestampElement = document.createElement('span');
                     timestampElement.classList.add('timestamp');
-                    timestampElement.textContent = new Date(message.timestamp).toLocaleTimeString();
+                    // new Date(message.timestamp).toLocaleDateString(); (OR Today/Yesterday) - new Date(message.timestamp).toLocaleTimeString()
+                    let _d = new Date(message.timestamp)
+                    let _d_dateString = (new Date()).toLocaleDateString() == _d.toLocaleDateString() ? "Today" : (new Date(Date.now() - 86400000)).toLocaleDateString() == _d.toLocaleDateString() ? "Yesterday" : _d.toLocaleDateString()
+                    let _d_timeString = _d.toLocaleTimeString()
+                    timestampElement.textContent = `${_d_dateString} - ${_d_timeString}`;
                     
                     usernameElement.appendChild(userImageElement);
                     usernameElement.appendChild(userNameElement);
@@ -754,6 +803,23 @@
                 history.forEach(message => {
                     UI.addMessagetoHistory(message)
                 });
+            }
+
+            loadUsers(users) {
+                /*
+                    Array<{
+                        id: member.id,
+                        username: member.username,
+                        avatarUrl: member.avatarUrl,
+                    }>
+                  */
+                console.log(`[UI] Loading users:`, users);
+                const usersElem = document.querySelector('.users')
+                usersElem.innerHTML = ""
+                users.forEach(user => {
+                    let userElement = this._createUserElement(user)
+                    usersElem.appendChild(userElement)
+                })
             }
         }
 
@@ -865,6 +931,7 @@
             */
             console.log(`[socket:roomList] Rooms:`, rooms);
             UI.loadRooms(rooms)
+            UI.loadUsers(rooms.find(r => r.id == _GLOBAL_TEMP_.CURRENT_ROOM)?.members ?? [])
             if(_GLOBAL_TEMP_.CURRENT_ROOM == null) {
                 socket.emit('joinRoom', 'default')
             }
