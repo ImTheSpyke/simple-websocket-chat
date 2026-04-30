@@ -1,12 +1,13 @@
 {
   "name": "simple-websocket-chat",
-  "version": "1.0.0",
+  "version": "26.0.0",
   "type": "module",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "npm run build && node ./dist/index.js",
     "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "npm run build && npm run start",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -14,7 +15,7 @@
     "url": "git+https://github.com/ImSpyke/simple-websocket-chat.git"
   },
   "keywords": [],
-  "author": "",
+  "author": "ImTheSpyke",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/ImSpyke/simple-websocket-chat/issues"
@@ -22,8 +23,7 @@
   "homepage": "https://github.com/ImSpyke/simple-websocket-chat#readme",
   "dependencies": {
     "express": "^4.21.2",
-    "fs": "^0.0.1-security",
-    "path": "^0.12.7",
+    "seedable-random-avatar-generator": "^1.1.2",
     "socket.io": "^4.8.1",
     "somefunctions": "^5.0.1"
   },
