@@ -4,11 +4,18 @@ import { Server } from 'socket.io';
 import path from 'path';
 import fs from 'fs';
 import * as SF from 'somefunctions'
+import { generateRandomAvatar } from 'seedable-random-avatar-generator';
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+
+
+const CONFIG = {
+    KEEP_TIME: isNaN(parseInt(`${process.env.KEEP_TIME}`)) ? 24*60*60*1000 : parseInt(`${process.env.KEEP_TIME}`) // 24 hours
+}
+console.log(`CONFIG:`, CONFIG);
 
 import * as Types from './Types.js'
 
@@ -83,7 +90,7 @@ function generateUser(username: string, socketId: string): Types.User {
         socketId: socketId,
         // ID is hash from username
         id: userID,
-        avatarUrl: `https://robohash.org/${username}`,
+        avatarUrl: generateRandomAvatar(username),
         username: username,
         expiresAt: Date.now() + 1000 * 60 * 60 * 24, // 24 hours
         roles: [],
@@ -118,7 +125,7 @@ setInterval(() => {
 
     
     
-}, 1000 * 60 * 60); // 1 hour
+}, 1000 * 60); // 1 minute
 
 /*
 export type User = {
@@ -143,7 +150,14 @@ function getRoomList(): Array<Types.Room> {
     return roomList.map(room => {
         return {
             ...room,
-            memberCount: RM_Members.getMembers(room.id).length
+            memberCount: RM_Members.getMembers(room.id).length,
+            members: RM_Members.getMembers(room.id).map(member => {
+                return {
+                    id: member.id,
+                    username: member.username,
+                    avatarUrl: member.avatarUrl,
+                }
+            })
         }
     })
 }
@@ -201,8 +215,26 @@ class RoomManager_Members {
 const RM_Members = new RoomManager_Members();
 
 class RoomManager_Messages {
+    keepTime: number
+    clearCacheInterval: NodeJS.Timeout;
     static RoomMessages: Map<Types.Room['id'], Array<Types.Message>> = new Map();
-    constructor() { }
+    constructor(datas: {
+        keepTime: number
+    }) {
+        this.keepTime = datas.keepTime;
+        this.clearCacheInterval = setInterval(() => {
+            // Clear all messages older than keepTime
+            const now = Date.now();
+            RoomManager_Messages.RoomMessages.forEach((messages, roomId) => {
+                const newMessages = messages.filter(message => {
+                    const messageTime = new Date(message.timestamp).getTime();
+                    return (now - messageTime) < this.keepTime;
+                });
+                RoomManager_Messages.RoomMessages.set(roomId, newMessages);
+            })
+
+        }, 60*1000);
+    }
     addMessage(roomId: string, message: Types.Message) {
         if (RoomManager_Messages.RoomMessages.has(roomId)) {
             const messages = RoomManager_Messages.RoomMessages.get(roomId);
@@ -245,11 +277,14 @@ class RoomManager_Messages {
     }
 }
 
-const RM_Messages = new RoomManager_Messages();
+const RM_Messages = new RoomManager_Messages({
+    keepTime: CONFIG.KEEP_TIME
+});
 
 
 setInterval(() => {
     console.log(`DEBUG: Messages:`, RoomManager_Messages.RoomMessages)
+    console.log(`DEBUG Members:`, RoomManager_Members.RoomMembers)
 }, 1000)
 
 
@@ -311,6 +346,7 @@ io.on('connection', (socket) => {
         if (userId) {
             Users.delete(socket.id);
         }
+        io.emit('roomList', getRoomList());
 
     });
 
@@ -359,7 +395,9 @@ io.on('connection', (socket) => {
 
 
     socket.on('getRooms', () => {
-        if(!isConnected()) { return }
+        if(!isConnected()) {
+        socket.emit('roomList', []);
+        }
         socket.emit('roomList', getRoomList());
     });
 
@@ -372,18 +410,19 @@ io.on('connection', (socket) => {
         if(!Rooms.has(roomId)) {
             socket.emit('error', { message: 'Room not found' });
             socket.emit('joinedRoom', null);
-            socket.emit('roomList', getRoomList());
+            io.emit('roomList', getRoomList());
             return;
         } else {
-            console.log(`[joinRoom] joined room 'room-${roomId}'`);
-            socket.join(`room-${roomId}`);
-            socket.emit('joinedRoom', roomId);
-            socket.emit('roomList', getRoomList());
             if(user) {
                 RM_Members.removeMemberFromAllRooms(user);
                 RM_Members.addMember(roomId, user);
             }
+            console.log(`[joinRoom] joined room 'room-${roomId}'`);
+            socket.join(`room-${roomId}`);
+            socket.emit('joinedRoom', roomId);
+            io.emit('roomList', getRoomList());
         }
+        
     })
 
     socket.on('getMembersInRoom', (roomId: string) => {
