@@ -252,8 +252,8 @@
             const username = document.getElementById('username').value;
             const alertBox = document.createElement('div')
 
-            if (username.length < 3 || username.length > 20) {
-                createInfoBox('Username must be between 3 and 20 characters.');
+            if (username.length < 1 || username.length > 20) {
+                createInfoBox('Username must be between 1 and 20 characters.');
                 return;
             }
             // Proceed with login
