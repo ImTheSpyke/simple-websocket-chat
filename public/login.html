@@ -212,7 +212,10 @@
             <input type="text" id="username" class="text-input" placeholder=" " name="username" required minlength="3" maxlength="20">
             <label for="username">Username</label>
         </div>
-        <div class="remember-me">
+        <!--
+        TODO: force rememberMe to prevent infinite page reload
+        -->
+        <div class="remember-me" style="display:none;">
             <input type="checkbox" id="rememberMe" class="checkbox-input">
             <label for="rememberMe">Remember me</label>
             <span class="tooltip">Saves your nickname for next time</span>
@@ -223,66 +226,103 @@
     <script src="/socket.io/socket.io.js"></script>
     <script>
     const socket = io();
-    const STORAGE_KEY = 'quickord.userId';
 
-    function createInfoBox(message) {
-        const alertBox = document.createElement('div');
-        alertBox.style.position = 'absolute';
-        alertBox.style.top = '20px';
-        alertBox.style.left = '50%';
-        alertBox.style.transform = 'translateX(-50%)';
-        alertBox.style.backgroundColor = '#ff4d4d';
-        alertBox.style.color = '#fff';
-        alertBox.style.padding = '10px 20px';
-        alertBox.style.borderRadius = '5px';
-        alertBox.style.zIndex = '1000';
-        alertBox.textContent = message;
-        document.body.appendChild(alertBox);
-        setTimeout(() => alertBox.remove(), 3000);
-    }
+    const STORAGE = {
+        LOCAL: 'quickord.userId',
+        SESSION: 'quickord.userId'
+    };
+
+    const UI = {
+        button: document.querySelector('button'),
+
+        setLoading(isLoading) {
+            this.button.disabled = isLoading;
+            this.button.textContent = isLoading ? 'Loading ...' : 'Start chatting';
+        },
+
+        showError(message) {
+            const box = document.createElement('div');
+            box.style.position = 'absolute';
+            box.style.top = '20px';
+            box.style.left = '50%';
+            box.style.transform = 'translateX(-50%)';
+            box.style.backgroundColor = '#ff4d4d';
+            box.style.color = '#fff';
+            box.style.padding = '10px 20px';
+            box.style.borderRadius = '5px';
+            box.style.zIndex = '1000';
+            box.textContent = message;
+
+            document.body.appendChild(box);
+            setTimeout(() => box.remove(), 3000);
+        }
+    };
+
+    const Storage = {
+        setUserId(userId, rememberMe) {
+            if (rememberMe) {
+                localStorage.setItem(STORAGE.LOCAL, userId);
+                sessionStorage.removeItem(STORAGE.SESSION);
+            } else {
+                sessionStorage.setItem(STORAGE.SESSION, userId);
+                localStorage.removeItem(STORAGE.LOCAL);
+            }
+        },
+
+        getUserId() {
+            return (
+                sessionStorage.getItem(STORAGE.SESSION) ||
+                localStorage.getItem(STORAGE.LOCAL)
+            );
+        },
+
+        clear() {
+            localStorage.removeItem(STORAGE.LOCAL);
+            sessionStorage.removeItem(STORAGE.SESSION);
+        }
+    };
 
     function login() {
         const username = document.getElementById('username').value.trim();
         const rememberMe = document.getElementById('rememberMe').checked;
 
         if (username.length < 1 || username.length > 20) {
-            createInfoBox('Username must be between 1 and 20 characters.');
+            UI.showError('Username must be between 1 and 20 characters.');
             return;
         }
 
-        document.querySelector('button').disabled = true;
-        document.querySelector('button').textContent = 'Loading ...';
-
+        UI.setLoading(true);
         socket.emit('login', { username, rememberMe });
     }
 
-    socket.on('loginSuccess', (user) => {
-        console.log('Logged in as', user);
+    // --- SOCKET EVENTS ---
 
-        if (user.rememberMe) {
-            localStorage.setItem(STORAGE_KEY, user.userId);
-        } else {
-            localStorage.removeItem(STORAGE_KEY);
-        }
+    socket.on('loginSuccess', (user) => {
+        console.log('[loginSuccess]', user);
+
+        Storage.setUserId(user.userId, user.rememberMe);
 
         window.location.href = '/';
     });
 
     socket.on('loginError', (err) => {
-        createInfoBox(err?.message || 'Login failed');
-        document.querySelector('button').disabled = false;
-        document.querySelector('button').textContent = 'Start chatting';
-    });
-
-    window.addEventListener('load', () => {
-        const storedUserId = localStorage.getItem(STORAGE_KEY);
-        if (storedUserId) {
-            socket.emit('resumeSession', { userId: storedUserId });
-        }
+        UI.showError(err?.message || 'Login failed');
+        UI.setLoading(false);
     });
 
     socket.on('loggedOut', () => {
-        localStorage.removeItem(STORAGE_KEY);
+        Storage.clear();
+    });
+
+    // --- AUTO RESUME SESSION ---
+
+    window.addEventListener('load', () => {
+        const userId = Storage.getUserId();
+
+        if (!userId) return;
+
+        console.log('[resumeSession] Trying with userId:', userId);
+        socket.emit('resumeSession', { userId });
     });
 </script>
 </body>

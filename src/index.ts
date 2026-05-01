@@ -3,477 +3,594 @@ import http from 'http';
 import { Server } from 'socket.io';
 import path from 'path';
 import fs from 'fs';
-import * as SF from 'somefunctions'
+import * as SF from 'somefunctions';
 import { generateRandomAvatar } from 'seedable-random-avatar-generator';
 import * as uuid from 'uuid';
+import * as Types from './Types.js';
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-
-
 const CONFIG = {
-    KEEP_TIME: isNaN(parseInt(`${process.env.KEEP_TIME}`)) ? 24*60*60*1000 : parseInt(`${process.env.KEEP_TIME}`) // 24 hours
-}
-console.log(`CONFIG:`, CONFIG);
+  KEEP_TIME: isNaN(parseInt(`${process.env.KEEP_TIME}`))
+    ? 24 * 60 * 60 * 1000
+    : parseInt(`${process.env.KEEP_TIME}`), // 24 hours
+};
 
-import * as Types from './Types.js'
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+const TEMP_SESSION_GRACE_MS = 2 * 60 * 1000;
+//const HEARTBEAT_INTERVAL_MS = 5 * 1000;
+const HEARTBEAT_TIMEOUT_MS = 15 * 1000;
 
+console.log('CONFIG:', CONFIG);
 
 app.use((req, _res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
-    next();
-})
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  next();
+});
 
+type SessionUser = {
+  id: string;
+  username: string;
+  avatarUrl: string;
+  socketId: string | null;
+  logged: boolean;
+  connected: boolean;
+  rememberMe: boolean;
+  expiresAt: number | null;
+  disconnectAt: number | null;
+  lastSeenAt: number;
+  lastPingAt: number;
+  roles: Array<Types.Role>;
+};
+
+type LoginSuccessPayload = {
+  userId: string;
+  username: string;
+  rememberMe: boolean;
+  expiresAt: string | null;
+};
+
+type ResumeSessionPayload = {
+  userId: string;
+};
+
+type PingPayload = {
+  userId?: string;
+};
 
 class ConfigManager {
-    private configPath: string = path.resolve('./config.json')
-    private config: {
-        [key: string]: any,
-        "adminKeys":string[],
-        "rooms": Array<Types.Room>
-    } | null
+  private configPath: string = path.resolve('./config.json');
+  private config: {
+    [key: string]: any;
+    adminKeys: string[];
+    rooms: Array<Types.Room>;
+  } | null;
 
-    constructor() {
-        this.config = null
-        this.loadConfig();
-    }
+  constructor() {
+    this.config = null;
+    this.loadConfig();
+  }
 
-    private loadConfig() {
-        if (fs.existsSync(this.configPath)) {
-            const data = fs.readFileSync(this.configPath, 'utf-8');
-            this.config = JSON.parse(data);
-            console.log(`Config loaded:`, this.config);
-        } else {
-            throw new Error(`Config file not found: ${this.configPath}`);
-        }
+  private loadConfig() {
+    if (fs.existsSync(this.configPath)) {
+      const data = fs.readFileSync(this.configPath, 'utf-8');
+      this.config = JSON.parse(data);
+      console.log('Config loaded:', this.config);
+    } else {
+      throw new Error(`Config file not found: ${this.configPath}`);
     }
+  }
 
-    private saveConfig() {
-        const data = JSON.stringify(this.config, null, 2);
-        fs.writeFileSync(this.configPath, data, 'utf-8');
-    }
+  private saveConfig() {
+    const data = JSON.stringify(this.config, null, 2);
+    fs.writeFileSync(this.configPath, data, 'utf-8');
+  }
 
-    public get(key: string) {
-        return this.config?.[key]
-    }
+  public get(key: string) {
+    return this.config?.[key];
+  }
 
-    public set(key: string, value: any) {
-        if(this.config) {
-            this.config[key] = value;
-            this.saveConfig();
-        }
+  public set(key: string, value: any) {
+    if (this.config) {
+      this.config[key] = value;
+      this.saveConfig();
     }
+  }
 
-    public delete(key: string) {
-        if(this.config) {
-            delete this.config[key];
-            this.saveConfig();
-        }
+  public delete(key: string) {
+    if (this.config) {
+      delete this.config[key];
+      this.saveConfig();
     }
+  }
 }
 
 const configManager = new ConfigManager();
 
 const Rooms: Map<string, Types.Room> = new Map();
-const Users: Map<string, Types.User> = new Map();
+const Users: Map<string, SessionUser> = new Map();
 
-configManager.get("rooms").forEach((room: Types.Room) => {
+const roomsFromConfig = configManager.get('rooms');
+if (Array.isArray(roomsFromConfig)) {
+  roomsFromConfig.forEach((room: Types.Room) => {
     Rooms.set(room.id, room);
-})
-
-
-function generateUser(username: string, socketId: string | null, rememberMe = false) {
-    const userId = uuid.v4();
-
-    return {
-        id: userId,
-        username,
-        avatarUrl: generateRandomAvatar(userId),
-        socketId,
-        logged: true,
-        rememberMe,
-        expiresAt: Date.now() + 1000 * 60 * 60 * 24,
-        lastSeenAt: Date.now(),
-        roles: [],
-    };
+  });
 }
 
-function createSessionForSocket(user: Types.User, socketId: string | null) {
-    user.socketId = socketId;
-    user.logged = true;
-    user.lastSeenAt = Date.now();
-    user.expiresAt = Date.now() + 1000 * 60 * 60 * 24;
-    Users.set(user.id, user);
-    return user;
+function createUser(username: string, socketId: string | null, rememberMe = false): SessionUser {
+  const userId = uuid.v4();
+  const now = Date.now();
+
+  return {
+    id: userId,
+    username,
+    avatarUrl: generateRandomAvatar(userId),
+    socketId,
+    logged: true,
+    connected: true,
+    rememberMe,
+    expiresAt: rememberMe ? now + SESSION_TTL_MS : null,
+    disconnectAt: null,
+    lastSeenAt: now,
+    lastPingAt: now,
+    roles: [],
+  };
 }
 
-function getUserFromSocketId(socketId: string | null) {
-    return Array.from(Users.values()).find(u => u.socketId === socketId) || undefined;
+function attachSocketToUser(user: SessionUser, socketId: string): SessionUser {
+  const now = Date.now();
+
+  user.socketId = socketId;
+  user.logged = true;
+  user.connected = true;
+  user.lastSeenAt = now;
+  user.lastPingAt = now;
+  user.disconnectAt = null;
+
+  if (user.rememberMe) {
+    user.expiresAt = now + SESSION_TTL_MS;
+  } else {
+    user.expiresAt = null;
+  }
+
+  Users.set(user.id, user);
+  return user;
 }
 
-function getUserFromId(userId: string) {
-    return Users.get(userId);
+function markUserDisconnected(user: SessionUser): SessionUser {
+  const now = Date.now();
+
+  user.socketId = null;
+  user.logged = false;
+  user.connected = false;
+  user.lastSeenAt = now;
+
+  if (user.rememberMe) {
+    user.disconnectAt = null;
+    user.expiresAt = now + SESSION_TTL_MS;
+  } else {
+    user.disconnectAt = now;
+    user.expiresAt = now + TEMP_SESSION_GRACE_MS;
+  }
+
+  Users.set(user.id, user);
+  return user;
 }
 
-
-setInterval(() => {
-    const now = Date.now();
-
-    Users.forEach((user) => {
-        if (user.expiresAt < now) {
-            if (user.socketId) {
-                io.to(user.socketId).emit('loggedOut', { reason: 'Session expired' });
-            }
-            RM_Members.removeMemberFromAllRooms(user);
-            Users.delete(user.id);
-        }
-    });
-}, 60 * 1000); // 1 minute interval
-
-/*
-export type User = {
-    logged: boolean
-    socketId: string
-    id: string
-    username: string
-    expiresAt: number
-    roles: Array<Role>
+function getUserFromSocketId(socketId: string | null): SessionUser | undefined {
+  return Array.from(Users.values()).find((u) => u.socketId === socketId);
 }
 
-export type Role = {
-    name: string,
-    color: string,
-    id: string
-}
-*/
-
-
-function getRoomList(): Array<Types.Room> {
-    const roomList = Array.from(Rooms.values());
-    return roomList.map(room => {
-        return {
-            ...room,
-            memberCount: RM_Members.getMembers(room.id).length,
-            members: RM_Members.getMembers(room.id).map(member => {
-                return {
-                    id: member.id,
-                    username: member.username,
-                    avatarUrl: member.avatarUrl,
-                }
-            })
-        }
-    })
+function getUserFromId(userId: string): SessionUser | undefined {
+  return Users.get(userId);
 }
 
+function getSocketUser(socket: import('socket.io').Socket): SessionUser | undefined {
+  return getUserFromSocketId(socket.id);
+}
 
 class RoomManager_Members {
-    static RoomMembers: Map<string, Array<Types.User>> = new Map();
-    constructor() { }
-    addMember(roomId: string, user: Types.User) {
-        if (RoomManager_Members.RoomMembers.has(roomId)) {
-            const members = RoomManager_Members.RoomMembers.get(roomId);
-            if (members) {
-                members.push(user);
-                RoomManager_Members.RoomMembers.set(roomId, members);
-            }
-        } else {
-            RoomManager_Members.RoomMembers.set(roomId, [user]);
-        }
+  static RoomMembers: Map<string, Array<SessionUser>> = new Map();
+
+  addMember(roomId: string, user: SessionUser) {
+    const current = RoomManager_Members.RoomMembers.get(roomId) ?? [];
+    const exists = current.some((member) => member.id === user.id);
+
+    if (!exists) {
+      current.push(user);
+      RoomManager_Members.RoomMembers.set(roomId, current);
     }
-    removeMember(roomId: string, user: Types.User) {
-        if (RoomManager_Members.RoomMembers.has(roomId)) {
-            const members = RoomManager_Members.RoomMembers.get(roomId);
-            if (members) {
-                const index = members.indexOf(user);
-                if (index > -1) {
-                    members.splice(index, 1);
-                    RoomManager_Members.RoomMembers.set(roomId, members);
-                }
-            }
-        }
-    }
-    removeMemberFromAllRooms(user: Types.User) {
-        RoomManager_Members.RoomMembers.forEach((members, roomId) => {
-            if(members.find(member => ( (member.id === user.id) || (member.socketId === user.socketId) ))) {
-                RoomManager_Members.RoomMembers.set(roomId, members.filter(member => member.id !== user.id));
-            } 
-        })
-    }
-    removeEveryMemberWithSocketId(socketId: string) {
-        RoomManager_Members.RoomMembers.forEach((members, roomId) => {
-            RoomManager_Members.RoomMembers.set(roomId, members.filter(member => member.socketId !== socketId));
-        })
-    }
-    getMembers(roomId: string): Array<Types.User> {
-        const members = RoomManager_Members.RoomMembers.get(roomId);
-        if (members) {
-            let temp: Types.User[] = members.map(user => Users.get(user.id) as Types.User);
-            return temp
-        } else {
-            return [];
-        }
-    }
+  }
+
+  removeMember(roomId: string, user: SessionUser) {
+    const current = RoomManager_Members.RoomMembers.get(roomId);
+    if (!current) return;
+
+    RoomManager_Members.RoomMembers.set(
+      roomId,
+      current.filter((member) => member.id !== user.id)
+    );
+  }
+
+  removeMemberFromAllRooms(user: SessionUser) {
+    RoomManager_Members.RoomMembers.forEach((members, roomId) => {
+      const filtered = members.filter((member) => member.id !== user.id);
+      RoomManager_Members.RoomMembers.set(roomId, filtered);
+    });
+  }
+
+  removeEveryMemberWithSocketId(socketId: string) {
+    RoomManager_Members.RoomMembers.forEach((members, roomId) => {
+      const filtered = members.filter((member) => member.socketId !== socketId);
+      RoomManager_Members.RoomMembers.set(roomId, filtered);
+    });
+  }
+
+  getMembers(roomId: string): Array<SessionUser> {
+    const members = RoomManager_Members.RoomMembers.get(roomId) ?? [];
+    return members
+      .map((user) => Users.get(user.id))
+      .filter((user): user is SessionUser => Boolean(user));
+  }
 }
 
 const RM_Members = new RoomManager_Members();
 
 class RoomManager_Messages {
-    keepTime: number
-    clearCacheInterval: NodeJS.Timeout;
-    static RoomMessages: Map<Types.Room['id'], Array<Types.Message>> = new Map();
-    constructor(datas: {
-        keepTime: number
-    }) {
-        this.keepTime = datas.keepTime;
-        this.clearCacheInterval = setInterval(() => {
-            // Clear all messages older than keepTime
-            const now = Date.now();
-            RoomManager_Messages.RoomMessages.forEach((messages, roomId) => {
-                const newMessages = messages.filter(message => {
-                    const messageTime = new Date(message.timestamp).getTime();
-                    return (now - messageTime) < this.keepTime;
-                });
-                RoomManager_Messages.RoomMessages.set(roomId, newMessages);
-            })
+  keepTime: number;
+  clearCacheInterval: NodeJS.Timeout;
+  static RoomMessages: Map<Types.Room['id'], Array<Types.Message>> = new Map();
 
-        }, 60*1000);
-    }
-    addMessage(roomId: string, message: Types.Message) {
-        if (RoomManager_Messages.RoomMessages.has(roomId)) {
-            const messages = RoomManager_Messages.RoomMessages.get(roomId);
-            if (messages) {
-                messages.push(message);
-                RoomManager_Messages.RoomMessages.set(roomId, messages);
-            }
-        } else {
-            RoomManager_Messages.RoomMessages.set(roomId, [message]);
-        }
-    }
-    getMessages(roomId: string): Array<Types.Message> {
-        const messages = RoomManager_Messages.RoomMessages.get(roomId);
-        if (messages) {
-            return messages;
-        } else {
-            return [];
-        }
-    }
-    clearMessagesInRoom(roomId: string) {
-        RoomManager_Messages.RoomMessages.set(roomId, []);
-    }
-    clearMessagesInAllRooms() {
-        RoomManager_Messages.RoomMessages.clear();
-    }
+  constructor(datas: { keepTime: number }) {
+    this.keepTime = datas.keepTime;
 
-    deleteMessage(roomId: string, messageId: string): boolean {
-        const messages = RoomManager_Messages.RoomMessages.get(roomId);
-        if (messages) {
-            const index = messages.findIndex(message => message.id === messageId);
-            if (index > -1) {
-                messages.splice(index, 1);
-                RoomManager_Messages.RoomMessages.set(roomId, messages);
-                return true
-            }
-            return false
-        } else {
-            return false
-        }
-    }
+    this.clearCacheInterval = setInterval(() => {
+      const now = Date.now();
+
+      RoomManager_Messages.RoomMessages.forEach((messages, roomId) => {
+        const newMessages = messages.filter((message) => {
+          const messageTime = new Date(message.timestamp).getTime();
+          return now - messageTime < this.keepTime;
+        });
+
+        RoomManager_Messages.RoomMessages.set(roomId, newMessages);
+      });
+    }, 60 * 1000);
+  }
+
+  addMessage(roomId: string, message: Types.Message) {
+    const current = RoomManager_Messages.RoomMessages.get(roomId) ?? [];
+    current.push(message);
+    RoomManager_Messages.RoomMessages.set(roomId, current);
+  }
+
+  getMessages(roomId: string): Array<Types.Message> {
+    return RoomManager_Messages.RoomMessages.get(roomId) ?? [];
+  }
+
+  clearMessagesInRoom(roomId: string) {
+    RoomManager_Messages.RoomMessages.set(roomId, []);
+  }
+
+  clearMessagesInAllRooms() {
+    RoomManager_Messages.RoomMessages.clear();
+  }
+
+  deleteMessage(roomId: string, messageId: string): boolean {
+    const messages = RoomManager_Messages.RoomMessages.get(roomId);
+    if (!messages) return false;
+
+    const index = messages.findIndex((message) => message.id === messageId);
+    if (index === -1) return false;
+
+    messages.splice(index, 1);
+    RoomManager_Messages.RoomMessages.set(roomId, messages);
+    return true;
+  }
 }
 
 const RM_Messages = new RoomManager_Messages({
-    keepTime: CONFIG.KEEP_TIME
+  keepTime: CONFIG.KEEP_TIME,
 });
 
+function getRoomList(): Array<Types.Room> {
+  return Array.from(Rooms.values()).map((room) => {
+    const members = RM_Members.getMembers(room.id);
+
+    return {
+      ...room,
+      memberCount: members.length,
+      members: members.map((member) => ({
+        id: member.id,
+        username: member.username,
+        avatarUrl: member.avatarUrl,
+      })),
+    };
+  });
+}
+
+function removeUserEverywhere(user: SessionUser) {
+  RM_Members.removeMemberFromAllRooms(user);
+  Users.delete(user.id);
+}
+
+function buildLoginSuccess(user: SessionUser): LoginSuccessPayload {
+  return {
+    userId: user.id,
+    username: user.username,
+    rememberMe: user.rememberMe,
+    expiresAt: user.expiresAt ? new Date(user.expiresAt).toISOString() : null,
+  };
+}
+
+function isUsernameValid(username: string) {
+  const usernameRegex = /^[a-zA-Z0-9_\.\- ]+$/;
+  return usernameRegex.test(username);
+}
+
+function markHeartbeat(user: SessionUser) {
+  const now = Date.now();
+  user.connected = true;
+  user.lastPingAt = now;
+  user.lastSeenAt = now;
+  user.logged = true;
+
+  if (user.rememberMe) {
+    user.expiresAt = now + SESSION_TTL_MS;
+  }
+
+  user.disconnectAt = null;
+  Users.set(user.id, user);
+}
 
 setInterval(() => {
-    console.log(`DEBUG: Messages:`, RoomManager_Messages.RoomMessages)
-    console.log(`DEBUG Members:`, RoomManager_Members.RoomMembers)
-}, 1000)
+  const now = Date.now();
 
+  Users.forEach((user) => {
+    if (user.socketId && now - user.lastPingAt > HEARTBEAT_TIMEOUT_MS) {
+      user.connected = false;
+      user.logged = false;
+
+      if (user.rememberMe) {
+        user.disconnectAt = null;
+      } else if (user.expiresAt === null) {
+        user.expiresAt = now + TEMP_SESSION_GRACE_MS;
+      }
+
+      Users.set(user.id, user);
+    }
+
+    if (user.expiresAt !== null && user.expiresAt < now) {
+      if (user.socketId) {
+        io.to(user.socketId).emit('loggedOut', { reason: 'Session expired' });
+      }
+      removeUserEverywhere(user);
+      RM_Members.removeMemberFromAllRooms(user);
+    }
+  });
+}, 5 * 1000);
 
 io.on('connection', (socket) => {
-    console.log(`[socket][${socket.id}] Connected.`);
+  console.log(`[socket][${socket.id}] Connected.`);
 
-    function isConnected() {
-        const user = getUserFromSocketId(socket.id);
-        if (!user) {
-            socket.emit('loggedOut', { reason: 'User not found' });
-            return false;
-        }
-        return true;
+  function isConnected(): boolean {
+    const user = getSocketUser(socket);
+    if (!user) {
+      socket.emit('loggedOut', { reason: 'User not found' });
+      return false;
+    }
+    return true;
+  }
+
+  function getRoomId(): string | null {
+    const roomId = [...socket.rooms.values()].find((room) => room.startsWith('room-')) ?? null;
+    return roomId ? roomId.replace('room-', '') : null;
+  }
+
+  socket.on('login', (datas: { username: string; rememberMe?: boolean }) => {
+    let { username, rememberMe = false } = datas;
+
+    rememberMe = true // TODO: force rememberMe to prevent infinite page reload
+
+    if (!isUsernameValid(username)) {
+      socket.emit('loginError', {
+        message: 'Invalid username. Only alphanumeric characters, underscores, hyphens, dots, and spaces are allowed.',
+      });
+      return;
     }
 
-    socket.on('login', ({ username, rememberMe }) => {
-        const usernameRegex = /^[a-zA-Z0-9_\.\- ]+$/;
+    const user = createUser(username, socket.id, !!rememberMe);
+    Users.set(user.id, user);
+    socket.data.userId = user.id;
 
-        if (!usernameRegex.test(username)) {
-            socket.emit('loginError', {
-                message: 'Invalid username. Only alphanumeric characters, underscores, hyphens, dots, and spaces are allowed.'
-            });
-            return;
-        }
+    socket.emit('loginSuccess', buildLoginSuccess(user));
+    io.emit('roomList', getRoomList());
+  });
 
-        const user = generateUser(username, socket.id, !!rememberMe);
-        Users.set(user.id, user);
+  socket.on('resumeSession', (datas: ResumeSessionPayload) => {
+    const user = getUserFromId(datas.userId);
 
-        socket.data.userId = user.id;
+    if (!user) {
+      socket.emit('loggedOut', { reason: 'Session not found' });
+      return;
+    }
 
-        socket.emit('loginSuccess', {
-            userId: user.id,
-            username: user.username,
-            rememberMe: user.rememberMe,
-            expiresAt: new Date(user.expiresAt).toISOString()
-        });
+    if (user.expiresAt !== null && user.expiresAt < Date.now()) {
+      removeUserEverywhere(user);
+      socket.emit('loggedOut', { reason: 'Session expired' });
+      return;
+    }
 
-        io.emit('roomList', getRoomList());
+    attachSocketToUser(user, socket.id);
+    socket.data.userId = user.id;
+
+    socket.emit('loginSuccess', buildLoginSuccess(user));
+    io.emit('roomList', getRoomList());
+  });
+
+  socket.on('ping-ping', (datas: PingPayload = {}) => {
+    const user = datas.userId ? getUserFromId(datas.userId) : getSocketUser(socket);
+
+    if (!user) {
+      socket.emit('loggedOut', { reason: 'User not found' });
+      return;
+    }
+
+    markHeartbeat(user);
+
+    socket.emit('ping-ping', {
+      userId: user.id,
+      serverTime: Date.now(),
     });
+  });
 
-    socket.on('resumeSession', ({ userId }) => {
-        const user = getUserFromId(userId);
+  socket.on('disconnect', () => {
+    console.log(`[socket][${socket.id}] Disconnected.`);
 
-        if (!user) {
-            socket.emit('loggedOut', { reason: 'Session not found' });
-            return;
-        }
+    const user = getUserFromSocketId(socket.id);
+    if (user) {
+      markUserDisconnected(user);
 
-        if (user.expiresAt < Date.now()) {
-            Users.delete(user.id);
-            socket.emit('loggedOut', { reason: 'Session expired' });
-            return;
-        }
+      if (!user.rememberMe) {
+        RM_Members.removeMemberFromAllRooms(user);
+      }
+    }
 
-        createSessionForSocket(user, socket.id);
-        socket.data.userId = user.id;
+    RM_Members.removeEveryMemberWithSocketId(socket.id);
+    io.emit('roomList', getRoomList());
+  });
 
-        socket.emit('loginSuccess', {
-            userId: user.id,
-            username: user.username,
-            rememberMe: user.rememberMe,
-            expiresAt: new Date(user.expiresAt).toISOString()
-        });
+  socket.on('message', ({ userId }: { userId: string; message: Types.Message }) => {
+    const user = Users.get(userId);
+    if (!user) {
+      socket.emit('loggedOut', { reason: 'User not found' });
+      return;
+    }
+  });
 
-        io.emit('roomList', getRoomList());
+  socket.on('getRooms', () => {
+    if (!isConnected()) return;
+    socket.emit('roomList', getRoomList());
+  });
+
+  socket.on('joinRoom', (roomId: string) => {
+    if (!isConnected()) return;
+
+    const user = getSocketUser(socket);
+    if (!user) return;
+
+    for (const room of [...socket.rooms.values()]) {
+      if (room !== socket.id) {
+        socket.leave(room);
+      }
+    }
+
+    if (!Rooms.has(roomId)) {
+      socket.emit('error', { message: 'Room not found' });
+      socket.emit('joinedRoom', null);
+      io.emit('roomList', getRoomList());
+      return;
+    }
+
+    RM_Members.removeMemberFromAllRooms(user);
+    RM_Members.addMember(roomId, user);
+
+    socket.join(`room-${roomId}`);
+    socket.emit('joinedRoom', roomId);
+    io.emit('roomList', getRoomList());
+  });
+
+  socket.on('getMembersInRoom', (roomId: string) => {
+    if (!isConnected()) return;
+
+    if (!Rooms.has(roomId)) {
+      socket.emit('error', { message: 'Room not found' });
+      return;
+    }
+
+    socket.emit('membersInRoom', RM_Members.getMembers(roomId));
+  });
+
+  socket.on('sendMessage', (datas: { content: string; attachments: Array<Types.Attachment> }) => {
+    if (!isConnected()) return;
+
+    const user = getSocketUser(socket);
+    if (!user) return;
+
+    const message: Types.Message = {
+      id: `${Date.now().toString().substring(5)}-${SF.Random.randHex(6)}`,
+      content: datas.content,
+      author: user.username,
+      authorId: user.id,
+      authorAvatarUrl: user.avatarUrl,
+      timestamp: new Date().toISOString(),
+      attachments: [],
+    };
+
+    const socketRoom = getRoomId();
+    if (!socketRoom) {
+      socket.emit('error', { message: 'Not in a room' });
+      return;
+    }
+
+    RM_Messages.addMessage(socketRoom, message);
+
+    const rooms = [...socket.rooms.values()].filter((room) => room.startsWith('room-'));
+    rooms.forEach((room) => {
+      io.to(room).emit('message', message);
     });
+  });
 
-    socket.on('disconnect', () => {
-        console.log(`[socket][${socket.id}] Disconnected.`);
-
-        const user = getUserFromSocketId(socket.id);
-        if (user) {
-            user.socketId = null;
-            user.logged = false;
-            user.lastSeenAt = Date.now();
-            Users.set(user.id, user);
-        }
-
-        RM_Members.removeEveryMemberWithSocketId(socket.id);
-        io.emit('roomList', getRoomList());
-    });
-
-    socket.on('sendMessage', (datas) => {
-        if (!isConnected()) return;
-
-        const user = getUserFromSocketId(socket.id);
-        if (!user) return;
-
-        const message = {
-            id: `${Date.now().toString().substring(5)}-${SF.Random.randHex(6)}`,
-            content: datas.content,
-            author: user.username,
-            authorId: user.id,
-            authorAvatarUrl: user.avatarUrl,
-            timestamp: new Date().toISOString(),
-            attachments: []
-        };
-
-        const socketRoom = [...socket.rooms.values()].find(room => room.startsWith('room-'))?.replace('room-', '') ?? null;
-        if (!socketRoom) {
-            socket.emit('error', { message: 'Not in a room' });
-            return;
-        }
-
-        RM_Messages.addMessage(socketRoom, message);
-
-        [...socket.rooms.values()]
-            .filter(room => room.startsWith('room-'))
-            .forEach(room => io.to(room).emit('message', message));
-    });
-
-    socket.on('getRooms', () => {
-        if (!isConnected()) return;
-        socket.emit('roomList', getRoomList());
-    });
-
-    socket.on('joinRoom', (roomId) => {
-        if (!isConnected()) return;
-
-        const user = getUserFromSocketId(socket.id);
-
-        socket.rooms.forEach(room => {
-            if (room !== socket.id) socket.leave(room);
-        });
-
-        if (!Rooms.has(roomId)) {
-            socket.emit('error', { message: 'Room not found' });
-            socket.emit('joinedRoom', null);
-            io.emit('roomList', getRoomList());
-            return;
-        }
-
-        if (user) {
-            RM_Members.removeMemberFromAllRooms(user);
-            RM_Members.addMember(roomId, user);
-        }
-
-        socket.join(`room-${roomId}`);
-        socket.emit('joinedRoom', roomId);
-        io.emit('roomList', getRoomList());
-    });
-
-    socket.on('getMembersInRoom', (roomId) => {
-        if (!isConnected()) return;
-
-        if (!Rooms.has(roomId)) {
-            socket.emit('error', { message: 'Room not found' });
-            return;
-        }
-
-        socket.emit('membersInRoom', RM_Members.getMembers(roomId));
-    });
-
-    socket.on('getRoomHistory', (roomId) => {
-        if (!isConnected()) return;
-        socket.emit('roomHistory', RM_Messages.getMessages(roomId));
-    });
+  socket.on('getRoomHistory', (roomId: string) => {
+    if (!isConnected()) return;
+    socket.emit('roomHistory', RM_Messages.getMessages(roomId));
+  });
 });
 
+app.get('/logout', (req, res) => {
+  const userId = String(req.query.userId ?? '');
+  const user = Users.get(userId);
 
-// Serve .html files if they exist
+  if (user) {
+    if (user.socketId && io.sockets.sockets.has(user.socketId)) {
+      io.to(user.socketId).emit('loggedOut', { reason: 'Manual logout' });
+      io.sockets.sockets.get(user.socketId)?.disconnect(true);
+    }
+
+    RM_Members.removeMemberFromAllRooms(user);
+    Users.delete(user.id);
+  }
+
+  res.redirect('/login');
+});
+
 app.get('*', (req, res) => {
-    console.log(`Serving ${req.path}`);
+  console.log(`Serving ${req.path}`);
 
-    if(req.path.startsWith('/assets')) {
-        if(fs.existsSync(path.resolve(path.join("./public/", req.path)))) {
-            res.sendFile(path.resolve(path.join("./public/", req.path)));
-        } else {
-            res.status(404).send('File not found');
-        }
-        return
+  if (req.path.startsWith('/assets')) {
+    const assetPath = path.resolve(path.join('./public/', req.path));
+
+    if (fs.existsSync(assetPath)) {
+      res.sendFile(assetPath);
+    } else {
+      res.status(404).send('File not found');
     }
-    const filePath = req.path === '/' ? '/index.html' : `${req.path}.html`;
-    const fullPath = path.resolve(path.join("./public/", filePath))
-    res.sendFile(fullPath, (err) => {
-        if (err) {
-            res.status(404).send('File not found');
-        }
-    });
+    return;
+  }
+
+  const filePath = req.path === '/' ? '/index.html' : `${req.path}.html`;
+  const fullPath = path.resolve(path.join('./public/', filePath));
+
+  res.sendFile(fullPath, (err) => {
+    if (err) {
+      res.status(404).send('File not found');
+    }
+  });
 });
 
-
-// Start the server
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`Server running on: http://localhost:${PORT}`);
+  console.log(`Server running on: http://localhost:${PORT}`);
 });

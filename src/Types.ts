@@ -22,12 +22,15 @@ export type User = {
     id: string;
     username: string;
     avatarUrl: string;
-    socketId: string | null;
     logged: boolean;
     rememberMe: boolean;
-    expiresAt: number;
-    lastSeenAt: number;
     roles: Array<Role>;
+    connected: boolean;
+    expiresAt: number | null;
+    disconnectAt: number | null;
+    lastSeenAt: number;
+    lastPingAt: number;
+    socketId: string | null;
 }
 
 export type Role = {

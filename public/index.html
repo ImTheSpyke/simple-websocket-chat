@@ -394,7 +394,11 @@
     <script>
     const socket = io();
 
-    const STORAGE_KEY = 'quickord.userId';
+    const STORAGE_KEYS = {
+        rememberedUserId: 'quickord.userId',
+        temporaryUserId: 'quickord.tempUserId',
+    };
+
     const isTemporarySession = new URLSearchParams(window.location.search).get('temporary') === '1';
 
     const state = {
@@ -402,6 +406,7 @@
         ownUserId: null,
         lastMessageUserId: null,
         shakeMessageInputUntil: 0,
+        heartbeatTimer: null,
     };
 
     const dom = {
@@ -415,38 +420,29 @@
     };
 
     const SVG = {
-        channel_locked: `<svg class="icon__2ea32" aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M16 4h.5v-.5a2.5 2.5 0 0 1 5 0V4h.5a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-6a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Zm4-.5V4h-2v-.5a1 1 0 1 1 2 0Z" clip-rule="evenodd" class=""></path><path fill="currentColor" d="M12.5 8c.28 0 .5.22.5.5V9c0 .1 0 .2.02.31.03.34-.21.69-.56.69H9.85l-.67 4h4.97l.28-1.68c.06-.34.44-.52.77-.43a3 3 0 0 0 .8.11c.27 0 .47.24.43.5l-.25 1.5H20a1 1 0 1 1 0 2h-4.15l-.86 5.16a1 1 0 0 1-1.98-.32l.8-4.84H8.86l-.86 5.16A1 1 0 0 1 6 20.84L6.82 16H3a1 1 0 1 1 0-2h4.15l.67-4H4a1 1 0 1 1 0-2h4.15l.86-5.16a1 1 0 1 1 1.98.32L10.19 8h2.31Z" class=""></path></svg>`,
-        channel: `<svg class="icon__2ea32" aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M10.99 3.16A1 1 0 1 0 9 2.84L8.15 8H4a1 1 0 0 0 0 2h3.82l-.67 4H3a1 1 0 1 0 0 2h3.82l-.8 4.84a1 1 0 0 0 1.97.32L8.85 16h4.97l-.8 4.84a1 1 0 0 0 1.97.32l.86-5.16H20a1 1 0 1 0 0-2h-3.82l.67-4H21a1 1 0 1 0 0-2h-3.82l.8-4.84a1 1 0 1 0-1.97-.32L15.15 8h-4.97l.8-4.84ZM14.15 14l.67-4H9.85l-.67 4h4.97Z" clip-rule="evenodd" class=""></path></svg>`
+        channel_locked: `<svg class="icon__2ea32" aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M16 4h.5v-.5a2.5 2.5 0 0 1 5 0V4h.5a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-6a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Zm4-.5V4h-2v-.5a1 1 0 1 1 2 0Z" clip-rule="evenodd"></path><path fill="currentColor" d="M12.5 8c.28 0 .5.22.5.5V9c0 .1 0 .2.02.31.03.34-.21.69-.56.69H9.85l-.67 4h4.97l.28-1.68c.06-.34.44-.52.77-.43a3 3 0 0 0 .8.11c.27 0 .47.24.43.5l-.25 1.5H20a1 1 0 1 1 0 2h-4.15l-.86 5.16a1 1 0 0 1-1.98-.32l.8-4.84H8.86l-.86 5.16A1 1 0 0 1 6 20.84L6.82 16H3a1 1 0 1 1 0-2h4.15l.67-4H4a1 1 0 1 1 0-2h4.15l.86-5.16a1 1 0 1 1 1.98.32L10.19 8h2.31Z"></path></svg>`,
+        channel: `<svg class="icon__2ea32" aria-hidden="true" role="img" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M10.99 3.16A1 1 0 1 0 9 2.84L8.15 8H4a1 1 0 0 0 0 2h3.82l-.67 4H3a1 1 0 1 0 0 2h3.82l-.8 4.84a1 1 0 0 0 1.97.32L8.85 16h4.97l-.8 4.84a1 1 0 0 0 1.97.32l.86-5.16H20a1 1 0 1 0 0-2h-3.82l.67-4H21a1 1 0 1 0 0-2h-3.82l.8-4.84a1 1 0 1 0-1.97-.32L15.15 8h-4.97l.8-4.84ZM14.15 14l.67-4H9.85l-.67 4h4.97Z" clip-rule="evenodd"></path></svg>`
     };
 
-    const users = [
-        { id: "0", name: "User0", imageUrl: "https://images.pexels.com/photos/14653174/pexels-photo-14653174.jpeg" },
-        { id: "1", name: "User1", imageUrl: "https://robohash.org/1" },
-        { id: "2", name: "User2", imageUrl: "https://robohash.org/2" },
-        { id: "3", name: "User3", imageUrl: "https://robohash.org/3" },
-    ];
-
     function getStoredUserId() {
-        const directUserId = localStorage.getItem(STORAGE_KEY);
-        if (directUserId) return directUserId;
+        return sessionStorage.getItem(STORAGE_KEYS.temporaryUserId)
+            || localStorage.getItem(STORAGE_KEYS.rememberedUserId)
+            || null;
+    }
 
-        // Optional backward-compatibility with the previous storage format.
-        try {
-            const legacyUser = JSON.parse(localStorage.getItem('user'));
-            if (legacyUser?.userId) {
-                localStorage.setItem(STORAGE_KEY, legacyUser.userId);
-                localStorage.removeItem('user');
-                return legacyUser.userId;
-            }
-        } catch {
-            localStorage.removeItem('user');
+    function setStoredUserId(userId, rememberMe) {
+        if (rememberMe) {
+            localStorage.setItem(STORAGE_KEYS.rememberedUserId, userId);
+            sessionStorage.removeItem(STORAGE_KEYS.temporaryUserId);
+        } else {
+            sessionStorage.setItem(STORAGE_KEYS.temporaryUserId, userId);
+            localStorage.removeItem(STORAGE_KEYS.rememberedUserId);
         }
-
-        return null;
     }
 
     function clearStoredSession() {
-        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(STORAGE_KEYS.rememberedUserId);
+        sessionStorage.removeItem(STORAGE_KEYS.temporaryUserId);
         localStorage.removeItem('user');
     }
 
@@ -526,6 +522,7 @@
 
         clearMessageHistoryWithText(text) {
             dom.chatMessages.innerHTML = '';
+
             const loading = document.createElement('div');
             loading.classList.add('loading');
 
@@ -546,10 +543,9 @@
         }
 
         createRoomElement(room) {
-            const memberCount = room.memberCount ?? '?';
-
             const element = document.createElement('div');
             element.classList.add('channel', `room-${room.id}`);
+
             if (room.id === state.currentRoom) {
                 element.classList.add('active');
             }
@@ -558,7 +554,7 @@
             element.innerHTML = `
                 <div class="icon">${SVG.channel}</div>
                 <div class="name">${room.name}</div>
-                <div class="members">${memberCount}</div>
+                <div class="members">${room.memberCount ?? '?'}</div>
             `;
 
             return element;
@@ -584,9 +580,11 @@
 
         parseContentToElements(text) {
             const elements = [];
+            const lines = String(text ?? '').split('\n');
             const urlRegex = /(https?:\/\/[^\s]+)/g;
 
-            for (const line of text.split('\n')) {
+            for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+                const line = lines[lineIndex];
                 const parts = line.split(urlRegex);
 
                 for (const part of parts) {
@@ -604,7 +602,7 @@
                     }
                 }
 
-                if (line !== text.split('\n').at(-1)) {
+                if (lineIndex < lines.length - 1) {
                     elements.push(document.createElement('br'));
                 }
             }
@@ -673,8 +671,6 @@
 
         loadRooms(rooms) {
             dom.channelList.innerHTML = '';
-            console.log('[UI] Loading rooms:', rooms);
-
             for (const room of rooms) {
                 dom.channelList.appendChild(this.createRoomElement(room));
             }
@@ -716,8 +712,6 @@
 
         loadHistory(history) {
             dom.chatMessages.innerHTML = '';
-            console.log('[UI] Loading history:', history);
-
             for (const message of history) {
                 this.addMessageToHistory(message);
             }
@@ -725,8 +719,6 @@
 
         loadUsers(usersList) {
             dom.users.innerHTML = '';
-            console.log('[UI] Loading users:', usersList);
-
             for (const user of usersList) {
                 dom.users.appendChild(this.createUserElement(user));
             }
@@ -797,10 +789,38 @@
         socket.emit('resumeSession', { userId });
     }
 
+    function startHeartbeat() {
+        stopHeartbeat();
+
+        state.heartbeatTimer = setInterval(() => {
+            const userId = state.ownUserId || getStoredUserId();
+            if (!userId) return;
+
+            socket.emit('ping-ping', { userId });
+        }, 5000);
+    }
+
+    function stopHeartbeat() {
+        if (state.heartbeatTimer) {
+            clearInterval(state.heartbeatTimer);
+            state.heartbeatTimer = null;
+        }
+    }
+
+    function syncSessionFromLogin(user) {
+        state.ownUserId = user.userId;
+        setStoredUserId(user.userId, !isTemporarySession);
+
+        if (isTemporarySession) {
+            window.history.pushState({}, document.title, '/');
+        }
+
+        startHeartbeat();
+        loadingScreen.hide();
+    }
+
     startLoadingSentences();
     bindTextareaEvents();
-
-    console.log('[/] URL:', window.location.href);
 
     window.addEventListener('load', () => {
         UI.clearMessageHistory();
@@ -809,26 +829,17 @@
 
     socket.on('loginSuccess', (user) => {
         console.log('[socket:loginSuccess] Logged in as:', user);
-
-        state.ownUserId = user.userId;
-
-        if (isTemporarySession) {
-            clearStoredSession();
-            window.history.pushState({}, document.title, '/');
-        }
-
-        loadingScreen.hide();
+        syncSessionFromLogin(user);
     });
 
     socket.on('loggedOut', (data) => {
         console.log('[socket:loggedOut] Logged out:', data);
         state.ownUserId = null;
+        stopHeartbeat();
         redirectToLogin();
     });
 
     socket.on('roomList', (rooms) => {
-        console.log('[socket:roomList] Rooms:', rooms);
-
         UI.loadRooms(rooms);
         UI.loadUsers(rooms.find(r => r.id == state.currentRoom)?.members ?? []);
 
@@ -838,23 +849,28 @@
     });
 
     socket.on('joinedRoom', (roomId) => {
-        console.log('[socket:joinedRoom]', roomId);
         UI.selectRoom(roomId);
     });
 
     socket.on('roomHistory', (history) => {
-        console.log('[socket:roomHistory]', history);
         UI.loadHistory(history);
     });
 
     socket.on('message', (message) => {
-        console.log('[socket:message]', message);
         APP.receiveMessage(message);
     });
 
     socket.on('connect', () => {
         console.log('[socket:connect] Connected to server');
         socket.emit('getRooms');
+    });
+
+    socket.on('disconnect', () => {
+        stopHeartbeat();
+    });
+
+    socket.on('ping-ping', () => {
+        // heartbeat acknowledged by server
     });
 
     socket.on('error', (error) => {
