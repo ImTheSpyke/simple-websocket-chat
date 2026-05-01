@@ -150,7 +150,7 @@
             flex-grow: 1;
             margin-bottom: 20px;
             padding: 10px;
-            background-color: #2f3136;
+            /*background-color: #2f3136;*/
             border-radius: 8px;
             overflow-y: auto;
             height: -webkit-fill-available;
@@ -167,10 +167,18 @@
             display: none;
         }
         .message {
-            margin-bottom: 10px;
-            max-width: 80%;
-            width: fit-content;
+            /*max-width: 80%;
+            width: fit-content;*/
             position: relative;
+        }
+        .message:hover .content{
+            background-color: #40444b;
+        }
+        .message:not(:has(> .username.hide)) {
+            margin-top: 10px;
+        }
+        .message:has(> .username.hide) {
+            margin-top: -10px;
         }
         .message > .username {
             display: flex;
@@ -180,6 +188,28 @@
             margin-bottom: 5px;
             margin-left: 5px;
             margin-right: 5px;
+        }
+        .message:has(.username.hide) > .username img,
+        .message:has(.username.hide) > .username .name,
+        .message:has(.username.hide) > .username .timestamp .dayName {
+            display: none;
+        }
+        .content::selection {
+            color: white;
+            background: #007bff; /* or any color you want */
+        }
+        .message:has(.username.hide) > .username {
+            top: 0;
+            left: 0;
+        }
+        .message:has(.username.hide) > .username .timestamp .time {
+            position: absolute;
+            top: 14px;
+            left: 0px;
+            opacity: 0;
+        }
+        .message:has(.username.hide):hover > .username .timestamp .time {
+            opacity: 1;
         }
         .message > .username img {
             width: 50px;
@@ -191,25 +221,29 @@
             font-size: 16px;
             font-weight: 700;
             margin: 0px 5px;
-            margin-top: -25px;
+            margin-top: -20px;
         }
         .message > .username .timestamp {
             font-size: 0.8em;
             color: #b9bbbe;
             margin-right: auto;
             letter-spacing: 0.1em; /* Adjust the value as needed */
-            margin-top: -25px;
+            margin-top: -20px;
             margin-left: 5px;
         }
+        .message > .username .timestamp .dayName {
+            margin-right: 4px;
+        }
         .message > .content {
-            margin-left: 65px;
-            margin-top: -30px;
-            padding: 8px;
-            background-color: #40444b;
+            margin-left: 56px;
+            padding: 5px 10px;
             border-radius: 4px;
             font-size: 1em;
-            width: fit-content;
+            width: auto;
             overflow-wrap: anywhere;
+        }
+        .message:not(:has(> .username.hide)) > .content {
+            margin-top: -30px;
         }
         
         body.setting-message-right .message.you {
@@ -230,9 +264,6 @@
         }
         body.setting-message-right .message.you .content {
             margin-right: 45px;
-        }
-        .message.you .content {
-            background-color: #7289da;
         }
         .chat-bar {
             display: flex;
@@ -711,19 +742,20 @@
 
             const dateLabel =
                 today.toLocaleDateString() === messageDate.toLocaleDateString()
-                    ? 'Today'
+                    ? 'Today at'
                     : yesterday.toLocaleDateString() === messageDate.toLocaleDateString()
-                        ? 'Yesterday'
+                        ? 'Yesterday at'
                         : messageDate.toLocaleDateString();
 
-            timestampElement.textContent = `${dateLabel} - ${messageDate.toLocaleTimeString()}`;
+            timestampElement.innerHTML = `<span class="dayName">${dateLabel}</span><span class="time">${messageDate.toLocaleTimeString()}</span>`;
 
             usernameElement.appendChild(userImageElement);
             usernameElement.appendChild(userNameElement);
             usernameElement.appendChild(timestampElement);
 
             if (state.lastMessageUserId === message.authorId && state.lastMessageUserId !== null) {
-                usernameElement.style.display = 'none';
+                usernameElement.classList.toggle('hide');
+                //usernameElement.style.display = 'none';
             }
 
             const contentElement = document.createElement('div');

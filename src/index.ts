@@ -594,6 +594,7 @@ app.get('/logout', (req, res) => {
 
     RM_Members.removeMemberFromAllRooms(user);
     Users.delete(user.id);
+    removeUserEverywhere(user);
   }
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
