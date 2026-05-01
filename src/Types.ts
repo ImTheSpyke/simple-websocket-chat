@@ -19,13 +19,15 @@ export type Room = {
 
 
 export type User = {
-    logged: boolean
-    socketId: string
-    id: string
-    avatarUrl: string
-    username: string
-    expiresAt: number
-    roles: Array<Role>
+    id: string;
+    username: string;
+    avatarUrl: string;
+    socketId: string | null;
+    logged: boolean;
+    rememberMe: boolean;
+    expiresAt: number;
+    lastSeenAt: number;
+    roles: Array<Role>;
 }
 
 export type Role = {

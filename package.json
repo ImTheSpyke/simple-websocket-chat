@@ -25,7 +25,8 @@
     "express": "^4.21.2",
     "seedable-random-avatar-generator": "^1.1.2",
     "socket.io": "^4.8.1",
-    "somefunctions": "^5.0.1"
+    "somefunctions": "^5.0.1",
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",

@@ -222,94 +222,68 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
+    const socket = io();
+    const STORAGE_KEY = 'quickord.userId';
 
-        const socket = io()
+    function createInfoBox(message) {
+        const alertBox = document.createElement('div');
+        alertBox.style.position = 'absolute';
+        alertBox.style.top = '20px';
+        alertBox.style.left = '50%';
+        alertBox.style.transform = 'translateX(-50%)';
+        alertBox.style.backgroundColor = '#ff4d4d';
+        alertBox.style.color = '#fff';
+        alertBox.style.padding = '10px 20px';
+        alertBox.style.borderRadius = '5px';
+        alertBox.style.zIndex = '1000';
+        alertBox.textContent = message;
+        document.body.appendChild(alertBox);
+        setTimeout(() => alertBox.remove(), 3000);
+    }
 
+    function login() {
+        const username = document.getElementById('username').value.trim();
+        const rememberMe = document.getElementById('rememberMe').checked;
 
-        function createInfoBox(message) {
-            const alertBox = document.createElement('div');
-            alertBox.style.position = 'absolute';
-            alertBox.style.top = '20px';
-            alertBox.style.left = '50%';
-            alertBox.style.transform = 'translateX(-50%)';
-            alertBox.style.backgroundColor = '#ff4d4d';
-            alertBox.style.color = '#fff';
-            alertBox.style.padding = '10px 20px';
-            alertBox.style.borderRadius = '5px';
-            alertBox.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.2)';
-            alertBox.style.zIndex = '1000';
-            alertBox.style.fontSize = '16px';
-            alertBox.style.fontWeight = '500';
-            alertBox.style.textAlign = 'center';
-            alertBox.textContent = message;
-            document.body.appendChild(alertBox);
-            setTimeout(() => {
-                alertBox.remove();
-            }, 3000);
+        if (username.length < 1 || username.length > 20) {
+            createInfoBox('Username must be between 1 and 20 characters.');
+            return;
         }
 
-        function login() {
-            const username = document.getElementById('username').value;
-            const alertBox = document.createElement('div')
+        document.querySelector('button').disabled = true;
+        document.querySelector('button').textContent = 'Loading ...';
 
-            if (username.length < 1 || username.length > 20) {
-                createInfoBox('Username must be between 1 and 20 characters.');
-                return;
-            }
-            // Proceed with login
-            socket.emit('login', {
-                username: username
-            });
-            document.querySelector('button').disabled = true;
-            document.querySelector('button').textContent = 'Loading ...';
-            setTimeout(() => {
-                document.querySelector('button').textContent = 'Start chatting';
-                document.querySelector('button').disabled = false;
-            }, 3000);
+        socket.emit('login', { username, rememberMe });
+    }
+
+    socket.on('loginSuccess', (user) => {
+        console.log('Logged in as', user);
+
+        if (user.rememberMe) {
+            localStorage.setItem(STORAGE_KEY, user.userId);
+        } else {
+            localStorage.removeItem(STORAGE_KEY);
         }
 
+        window.location.href = '/';
+    });
 
-        socket.on('connect', () => {
-            console.log('Connected to server');
-        });
+    socket.on('loginError', (err) => {
+        createInfoBox(err?.message || 'Login failed');
+        document.querySelector('button').disabled = false;
+        document.querySelector('button').textContent = 'Start chatting';
+    });
 
-        socket.on('disconnect', () => {
-            console.log('Disconnected from server');
-        });
+    window.addEventListener('load', () => {
+        const storedUserId = localStorage.getItem(STORAGE_KEY);
+        if (storedUserId) {
+            socket.emit('resumeSession', { userId: storedUserId });
+        }
+    });
 
-        socket.on('loginSuccess', (user) => {
-            /*
-            user = {
-                userId: user.id,
-                username: user.username,
-                expiresAt: user.expiresAt
-            }
-            */
-            console.log('Logged in as', user);
-            localStorage.setItem('user', JSON.stringify(user));
-            if(document.getElementById('rememberMe').checked) {
-                window.location.href = '/'
-            } else {
-                window.location.href = `/?temporary=1`
-            }
-        });
-
-
-        window.addEventListener('load', () => {
-            try {
-                const user = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null;
-                if (user && user.expiresAt > Date.now()) {
-                    window.location.href = '/'
-                } else {
-                    localStorage.removeItem('user');
-                }
-            } catch (error) {
-                console.error('Error parsing user data. Logged out and redirecting to /login', error);
-                localStorage.removeItem('user');
-                window.location.href = '/login'
-            }
-        });
-
-    </script>
+    socket.on('loggedOut', () => {
+        localStorage.removeItem(STORAGE_KEY);
+    });
+</script>
 </body>
 </html>
