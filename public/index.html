@@ -301,22 +301,45 @@
             transition: background-color 0.2s;
         }
 
-        #main > div.users > .user {
+        #userList > .user {
             display: flex;
             justify-content: left;
             align-items: center;
         }
-        #main > div.users .user > img {
+        #userList > .user.you {
+            background-color: #7289da;
+        }
+        #userList > .user.you .name{
+            font-weight: bold;
+        }
+        #userList .user > img {
             width: 32px;
             height: 32px;
             border-radius: 50%;
             margin-right: 10px;
         }
-        #main > div.users > .user .name {
+        #userList > .user .name {
             font-size: 1em;
         }
+
+        #userList > .user.disconnected {
+            opacity: 0.5;
+        }
+
         .channel:hover, .user:hover {
             background-color: #50545c;
+        }
+
+        #main > div.users > div.banner {
+            display: flex;
+            flex-direction: row;
+        }
+        #main > div.users > div.banner h2 {
+            flex: 1;
+        }
+        #main > div.users > div.banner .logout {
+            color: #b9bbbe !important;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -382,10 +405,12 @@
             </div>
         </div>
         <div class="users">
-            <h2>Users</h2>
-            <div class="user">User1</div>
-            <div class="user">User2</div>
-            <div class="user">User3</div>
+            <div class="banner">
+                <h2>Users</h2>
+                <a class="logout" href="/logout">Logout</a>
+            </div>
+            <div id="userList">
+            </div>
         </div>
     </div>
 
@@ -416,7 +441,7 @@
         textarea: document.querySelector('.chat-bar textarea'),
         channelList: document.querySelector('.channel-list'),
         chatMessages: document.querySelector('.chat-messages'),
-        users: document.querySelector('.users'),
+        users: document.querySelector('#userList'),
     };
 
     const SVG = {
@@ -471,6 +496,43 @@
             index = (index + 1) % sentences.length;
         }, 3000);
     }
+
+    function formatTime(ms, format) {
+        const units = {
+            y: 31536000000,
+            mo: 2628000000,
+            d: 86400000,
+            h: 3600000,
+            m: 60000,
+            s: 1000
+        };
+
+        const date = {};
+        let rest = ms;
+
+        date.years = Math.floor(rest / units.y); rest %= units.y;
+        date.months = Math.floor(rest / units.mo); rest %= units.mo;
+        date.days = Math.floor(rest / units.d); rest %= units.d;
+        date.hours = Math.floor(rest / units.h); rest %= units.h;
+        date.minutes = Math.floor(rest / units.m); rest %= units.m;
+        date.seconds = Math.floor(rest / units.s); rest %= units.s;
+        date.milliseconds = rest;
+
+        date.all_days = Math.floor(ms / units.d);
+
+        const pad = (n, l = 2) => String(n).padStart(l, "0");
+
+        return format
+            .replace("YYYY", date.years)
+            .replace("MM", pad(date.months))
+            .replace("DDDDD", date.all_days)
+            .replace("DD", pad(date.days))
+            .replace("hh", pad(date.hours))
+            .replace("mm", pad(date.minutes))
+            .replace("ss", pad(date.seconds))
+            .replace("ms", pad(date.milliseconds, 3));
+    }
+
 
     const loadingScreen = {
         show() {
@@ -563,6 +625,16 @@
         createUserElement(user) {
             const element = document.createElement('div');
             element.classList.add('user');
+            element.classList.toggle('you', user.id === state.ownUserId);
+            element.classList.toggle('disconnected', !user.connected);
+
+            element.addEventListener("mouseenter", (event) => {
+                if(event.target.classList.contains("disconnected")) {
+                    element.title = `Disconnected ${formatTime(Date.now() - user.disconnectAt, 'mmm sss ago')}`
+                } else if(event.target.classList.contains("you")) {
+                    element.title = `Its you !`
+                }
+            })
 
             const img = document.createElement('img');
             img.src = user.avatarUrl ?? 'https://robohash.org/0';
@@ -841,11 +913,14 @@
 
     socket.on('roomList', (rooms) => {
         UI.loadRooms(rooms);
-        UI.loadUsers(rooms.find(r => r.id == state.currentRoom)?.members ?? []);
 
         if (state.currentRoom == null) {
             socket.emit('joinRoom', 'default');
         }
+    });
+
+    socket.on('userList', (users) => {
+        UI.loadUsers(users);
     });
 
     socket.on('joinedRoom', (roomId) => {
@@ -863,6 +938,7 @@
     socket.on('connect', () => {
         console.log('[socket:connect] Connected to server');
         socket.emit('getRooms');
+        socket.emit('getUsers');
     });
 
     socket.on('disconnect', () => {

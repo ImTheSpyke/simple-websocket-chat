@@ -216,7 +216,7 @@
         TODO: force rememberMe to prevent infinite page reload
         -->
         <div class="remember-me" style="display:none;">
-            <input type="checkbox" id="rememberMe" class="checkbox-input">
+            <input type="checkbox" id="rememberMe" class="checkbox-input" checked>
             <label for="rememberMe">Remember me</label>
             <span class="tooltip">Saves your nickname for next time</span>
         </div>
@@ -260,6 +260,7 @@
 
     const Storage = {
         setUserId(userId, rememberMe) {
+            console.log(`[Storage] .setUserId(${userId}, rememberMe: ${rememberMe})`);
             if (rememberMe) {
                 localStorage.setItem(STORAGE.LOCAL, userId);
                 sessionStorage.removeItem(STORAGE.SESSION);
@@ -270,6 +271,7 @@
         },
 
         getUserId() {
+            console.log('[Storage] .getUserId()');
             return (
                 sessionStorage.getItem(STORAGE.SESSION) ||
                 localStorage.getItem(STORAGE.LOCAL)
@@ -277,6 +279,7 @@
         },
 
         clear() {
+            console.log('[Storage] .clear()');
             localStorage.removeItem(STORAGE.LOCAL);
             sessionStorage.removeItem(STORAGE.SESSION);
         }
@@ -292,6 +295,7 @@
         }
 
         UI.setLoading(true);
+        console.log('[login] Emitting login with username:', username, 'rememberMe:', rememberMe);
         socket.emit('login', { username, rememberMe });
     }
 
@@ -310,7 +314,8 @@
         UI.setLoading(false);
     });
 
-    socket.on('loggedOut', () => {
+    socket.on('loggedOut', (data) => {
+        console.log('[socket:loggedOut] Logged out:', data);
         Storage.clear();
     });
 

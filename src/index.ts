@@ -168,7 +168,7 @@ function markUserDisconnected(user: SessionUser): SessionUser {
   user.lastSeenAt = now;
 
   if (user.rememberMe) {
-    user.disconnectAt = null;
+    user.disconnectAt = now;
     user.expiresAt = now + SESSION_TTL_MS;
   } else {
     user.disconnectAt = now;
@@ -234,6 +234,7 @@ class RoomManager_Members {
       .map((user) => Users.get(user.id))
       .filter((user): user is SessionUser => Boolean(user));
   }
+
 }
 
 const RM_Members = new RoomManager_Members();
@@ -301,14 +302,36 @@ function getRoomList(): Array<Types.Room> {
 
     return {
       ...room,
-      memberCount: members.length,
-      members: members.map((member) => ({
+      memberCount: members.filter(user => {
+            // Remove users disconnected for more than 1h
+            return user.connected
+      }).length,
+      members: members.filter(x => x.connected).map((member) => ({
         id: member.id,
         username: member.username,
         avatarUrl: member.avatarUrl,
       })),
     };
   });
+}
+
+
+function getConnectedUsersList() {
+    return Array.from(Users.values()).filter(user => {
+        // Remove users disconnected for more than 1h
+        return user.connected || (user.disconnectAt !== null && Date.now() - user.disconnectAt < 60 * 60 * 1000);
+    }).map((user) => ({
+        id: user.id,
+        username: user.username,
+        avatarUrl: user.avatarUrl,
+        connected: user.connected,
+        disconnectAt: user.disconnectAt
+    })).sort((a, b) => {
+        // order by connected status first, then by username
+        if (a.connected && !b.connected) return -1;
+        if (!a.connected && b.connected) return 1;
+        return a.username.localeCompare(b.username);
+    });
 }
 
 function removeUserEverywhere(user: SessionUser) {
@@ -351,6 +374,7 @@ setInterval(() => {
   Users.forEach((user) => {
     if (user.socketId && now - user.lastPingAt > HEARTBEAT_TIMEOUT_MS) {
       user.connected = false;
+      user.disconnectAt = user.disconnectAt ?? now;
       user.logged = false;
 
       if (user.rememberMe) {
@@ -378,7 +402,6 @@ io.on('connection', (socket) => {
   function isConnected(): boolean {
     const user = getSocketUser(socket);
     if (!user) {
-      socket.emit('loggedOut', { reason: 'User not found' });
       return false;
     }
     return true;
@@ -407,6 +430,7 @@ io.on('connection', (socket) => {
 
     socket.emit('loginSuccess', buildLoginSuccess(user));
     io.emit('roomList', getRoomList());
+    io.emit('userList', getConnectedUsersList());
   });
 
   socket.on('resumeSession', (datas: ResumeSessionPayload) => {
@@ -428,6 +452,7 @@ io.on('connection', (socket) => {
 
     socket.emit('loginSuccess', buildLoginSuccess(user));
     io.emit('roomList', getRoomList());
+    io.emit('userList', getConnectedUsersList());
   });
 
   socket.on('ping-ping', (datas: PingPayload = {}) => {
@@ -460,6 +485,7 @@ io.on('connection', (socket) => {
 
     RM_Members.removeEveryMemberWithSocketId(socket.id);
     io.emit('roomList', getRoomList());
+    io.emit('userList', getConnectedUsersList());
   });
 
   socket.on('message', ({ userId }: { userId: string; message: Types.Message }) => {
@@ -473,6 +499,11 @@ io.on('connection', (socket) => {
   socket.on('getRooms', () => {
     if (!isConnected()) return;
     socket.emit('roomList', getRoomList());
+  });
+
+  socket.on('getUsers', () => {
+    if (!isConnected()) return;
+    socket.emit('userList', getConnectedUsersList());
   });
 
   socket.on('joinRoom', (roomId: string) => {
@@ -491,6 +522,7 @@ io.on('connection', (socket) => {
       socket.emit('error', { message: 'Room not found' });
       socket.emit('joinedRoom', null);
       io.emit('roomList', getRoomList());
+      io.emit('userList', getConnectedUsersList());
       return;
     }
 
@@ -500,6 +532,7 @@ io.on('connection', (socket) => {
     socket.join(`room-${roomId}`);
     socket.emit('joinedRoom', roomId);
     io.emit('roomList', getRoomList());
+    io.emit('userList', getConnectedUsersList());
   });
 
   socket.on('getMembersInRoom', (roomId: string) => {
@@ -563,7 +596,28 @@ app.get('/logout', (req, res) => {
     Users.delete(user.id);
   }
 
-  res.redirect('/login');
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(`
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <meta http-equiv="refresh" content="0;url=/login" />
+        <title>Logging out...</title>
+      </head>
+      <body>
+        <script>
+          try {
+            localStorage.removeItem('quickord.userId');
+            localStorage.removeItem('user');
+            sessionStorage.removeItem('quickord.userId');
+            sessionStorage.removeItem('user');
+          } catch (e) {}
+          window.location.replace('/login');
+        </script>
+      </body>
+    </html>
+  `);
 });
 
 app.get('*', (req, res) => {
