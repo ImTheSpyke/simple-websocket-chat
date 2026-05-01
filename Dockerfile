@@ -30,8 +30,6 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/public ./public
 COPY config.json ./config.json
 
-# Expose your app port (adjust if needed)
-EXPOSE 3000
 
 # Start the app
 CMD ["node", "dist/index.js"]
