@@ -8,9 +8,9 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "npm run build && npm run start",
-    "docker:build": "node -e \"const v=require('./package.json').version; require('child_process').execSync(`docker build -t harbor.imthespyke.fr/poggroup/quickord:${v} .`, {stdio:'inherit'})\"",
-    "docker:push": "npm run docker:build && node -e \"const v=require('./package.json').version; require('child_process').execSync(`docker push harbor.imthespyke.fr/poggroup/quickord:${v}`, {stdio:'inherit'})\"",
-    "docker:push:latest": "docker build -t harbor.imthespyke.fr/poggroup/quickord:latest . && docker push harbor.imthespyke.fr/poggroup/quickord:latest"
+    "docker:build": "node -e \"const v=require('./package.json').version; require('child_process').execSync(`docker build -t harbor.imthespyke.fr/poggroup-public/quickord:${v} .`, {stdio:'inherit'})\"",
+    "docker:push": "npm run docker:build && node -e \"const v=require('./package.json').version; require('child_process').execSync(`docker push harbor.imthespyke.fr/poggroup-public/quickord:${v}`, {stdio:'inherit'})\"",
+    "docker:push:latest": "docker build -t harbor.imthespyke.fr/poggroup-public/quickord:latest . && docker push harbor.imthespyke.fr/poggroup-public/quickord:latest"
   },
   "repository": {
     "type": "git",
