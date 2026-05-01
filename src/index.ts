@@ -586,6 +586,36 @@ app.get('/logout', (req, res) => {
   const userId = String(req.query.userId ?? '');
   const user = Users.get(userId);
 
+  if(userId.trim() === '' || userId == null) {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(`<!doctype html>
+        <html>
+        <head>
+            <meta charset="utf-8" />
+            <meta http-equiv="refresh" content="0;url=/login" />
+            <title>Logging out...</title>
+        </head>
+        <body>
+            <script>
+                try {
+                    let userId = localStorage.getItem("quickord.userId") ?? null
+                    if(userId) {
+                        window.location.replace('/logout?userId=' + userId);
+                    } else {
+                        localStorage.removeItem('quickord.userId');
+                        localStorage.removeItem('user');
+                        sessionStorage.removeItem('quickord.userId');
+                        sessionStorage.removeItem('user');
+                        window.location.replace('/login');
+                    }
+                } catch (e) {}
+            </script>
+        </body>
+        </html>`);
+
+    return;
+  }
+
   if (user) {
     if (user.socketId && io.sockets.sockets.has(user.socketId)) {
       io.to(user.socketId).emit('loggedOut', { reason: 'Manual logout' });
@@ -597,28 +627,8 @@ app.get('/logout', (req, res) => {
     removeUserEverywhere(user);
   }
 
-  res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.send(`
-    <!doctype html>
-    <html>
-      <head>
-        <meta charset="utf-8" />
-        <meta http-equiv="refresh" content="0;url=/login" />
-        <title>Logging out...</title>
-      </head>
-      <body>
-        <script>
-          try {
-            localStorage.removeItem('quickord.userId');
-            localStorage.removeItem('user');
-            sessionStorage.removeItem('quickord.userId');
-            sessionStorage.removeItem('user');
-          } catch (e) {}
-          window.location.replace('/login');
-        </script>
-      </body>
-    </html>
-  `);
+  res.redirect('/login');
+
 });
 
 app.get('*', (req, res) => {
