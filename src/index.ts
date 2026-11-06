@@ -12,10 +12,14 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+// Message history retention (ms). Max 12 hours, overridable (lower) via KEEP_TIME env var.
+const MAX_KEEP_TIME_MS = 12 * 60 * 60 * 1000;
+const envKeepTime = parseInt(`${process.env.KEEP_TIME}`);
+
 const CONFIG = {
-  KEEP_TIME: isNaN(parseInt(`${process.env.KEEP_TIME}`))
-    ? 24 * 60 * 60 * 1000
-    : parseInt(`${process.env.KEEP_TIME}`), // 24 hours
+  KEEP_TIME: isNaN(envKeepTime) || envKeepTime <= 0
+    ? MAX_KEEP_TIME_MS
+    : Math.min(envKeepTime, MAX_KEEP_TIME_MS),
 };
 
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -248,17 +252,15 @@ class RoomManager_Messages {
     this.keepTime = datas.keepTime;
 
     this.clearCacheInterval = setInterval(() => {
-      const now = Date.now();
-
       RoomManager_Messages.RoomMessages.forEach((messages, roomId) => {
-        const newMessages = messages.filter((message) => {
-          const messageTime = new Date(message.timestamp).getTime();
-          return now - messageTime < this.keepTime;
-        });
-
-        RoomManager_Messages.RoomMessages.set(roomId, newMessages);
+        RoomManager_Messages.RoomMessages.set(roomId, this.filterExpired(messages));
       });
     }, 60 * 1000);
+  }
+
+  private filterExpired(messages: Array<Types.Message>): Array<Types.Message> {
+    const now = Date.now();
+    return messages.filter((message) => now - new Date(message.timestamp).getTime() < this.keepTime);
   }
 
   addMessage(roomId: string, message: Types.Message) {
@@ -268,7 +270,8 @@ class RoomManager_Messages {
   }
 
   getMessages(roomId: string): Array<Types.Message> {
-    return RoomManager_Messages.RoomMessages.get(roomId) ?? [];
+    // Filter on read too, so expired messages are never sent between cleanup ticks
+    return this.filterExpired(RoomManager_Messages.RoomMessages.get(roomId) ?? []);
   }
 
   clearMessagesInRoom(roomId: string) {
@@ -631,7 +634,7 @@ app.get('/logout', (req, res) => {
 
 });
 
-app.get('*', (req, res) => {
+app.get('/{*splat}', (req, res) => {
   console.log(`Serving ${req.path}`);
 
   if (req.path.startsWith('/assets')) {

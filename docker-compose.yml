@@ -7,5 +7,5 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=80
-      - KEEP_TIME=86400
+      - KEEP_TIME=43200000 # ms (12h, max)
     restart: unless-stopped
